@@ -1,0 +1,16 @@
+# Dependencies / build output
+node_modules/
+.next/
+dist/
+coverage/
+tsconfig.tsbuildinfo
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Misc
+*.log
+.DS_Store
+.claude/settings.local.json

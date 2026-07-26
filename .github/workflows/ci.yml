@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: Typecheck + build
+    runs-on: ubuntu-latest
+    env:
+      # Build-time fallback ONLY. The real origin is injected at runtime via
+      # DASHBOARD_API_URL (app/layout.tsx), so this stays at the localhost
+      # default to keep the image environment-agnostic.
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Build
+        run: pnpm build
+      # The backend redirects into these routes (dripstack-backend:
+      # api/routes/sso.py, api/routes/admin.py, worker/activities.py). Renaming
+      # or deleting one breaks SSO or notification links with no compile error
+      # on either side of the split.
+      - name: Cross-repo route contract
+        run: |
+          for p in "app/sso/callback/page.tsx" "app/login/page.tsx" \
+                   "app/integrations/page.tsx" "app/runs/[id]/page.tsx"; do
+            test -f "$p" || { echo "::error::contract route missing: $p"; exit 1; }
+          done
+
+  image:
+    name: Build image
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.event_name == 'push'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: ${{ github.event_name == 'pull_request' }}
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      # The entrypoint must refuse to start without DASHBOARD_API_URL — that
+      # guard is the only thing standing between a misconfigured deploy and a
+      # dashboard that silently calls localhost from every user's browser.
+      - name: Smoke — entrypoint guard fires
+        if: github.event_name == 'pull_request'
+        run: |
+          IMG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+          if docker run --rm -e NODE_ENV=production "$IMG" node -e ''; then
+            echo "::error::entrypoint did not fail with DASHBOARD_API_URL unset"; exit 1
+          fi

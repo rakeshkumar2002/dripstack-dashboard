@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* DripStack "calm control-room" design system.
+   Canvas off-white with a faint dot grid; one confident blue (#2f5fd0);
+   severity colors reserved for critical / warning / resolved. */
+:root {
+  color-scheme: light;
+  --ds-canvas: #f4f5f8;
+  --ds-surface: #ffffff;
+  --ds-border: #e7e9f0;
+  --ds-border-strong: #e2e5ec;
+  --ds-ink: #11131a;
+  --ds-muted: #5b616e;
+  --ds-faint: #8b909c;
+  --ds-fainter: #a3a8b4;
+  --ds-blue: #2f5fd0;
+  --ds-blue-hover: #2750b8;
+  --ds-blue-tint: #eef3ff;
+  --ds-blue-border: #c9d8fb;
+  --ds-red: #e5484d;
+  --ds-red-ink: #cf2f37;
+  --ds-red-tint: #fdeced;
+  --ds-amber: #cf8a09;
+  --ds-amber-tint: #faf1db;
+  --ds-green: #15935b;
+  --ds-green-tint: #e3f4ec;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--ds-canvas);
+  background-image: radial-gradient(#e4e7ee 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--ds-ink);
+  font-family: var(--font-body), 'Hanken Grotesk', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display), 'Space Grotesk', system-ui, sans-serif;
+}
+.font-mono {
+  font-family: var(--font-mono), 'JetBrains Mono', ui-monospace, monospace;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d3d7e0;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #bcc2cf;
+  background-clip: content-box;
+}
+
+@keyframes ds-drawer-in {
+  from {
+    transform: translateX(34px);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes ds-bg-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ds-col-in {
+  from {
+    transform: translateY(14px);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes ds-pop-in {
+  from {
+    transform: scale(0.99) translateY(7px);
+  }
+  to {
+    transform: none;
+  }
+}

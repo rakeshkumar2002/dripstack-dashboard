@@ -1,0 +1,9 @@
+# TLS termination for the DripStack dashboard.
+#
+# Whatever hostname this serves must be set as DASHBOARD_URL in the backend --
+# exactly, with the scheme and no trailing slash -- or the browser's CORS
+# preflight against the API fails and the whole app appears to hang on load.
+{$DASHBOARD_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy dashboard:3000
+}

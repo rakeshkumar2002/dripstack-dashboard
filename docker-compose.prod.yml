@@ -1,0 +1,34 @@
+name: dripstack-dashboard
+
+services:
+  dashboard:
+    image: ghcr.io/OWNER/dripstack-dashboard:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      # CONTRACT: must equal APP_BASE_URL in the dripstack-backend repo, and this
+      # app's own public origin must be DASHBOARD_URL there.
+      DASHBOARD_API_URL: ${DASHBOARD_API_URL:?set DASHBOARD_API_URL to the API origin}
+    expose: ["3000"]
+    # Possible because config is injected at request time rather than substituted
+    # into the built bundles on start.
+    read_only: true
+    tmpfs: ["/tmp"]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DASHBOARD_DOMAIN: ${DASHBOARD_DOMAIN:?set DASHBOARD_DOMAIN to this app's public hostname}
+    depends_on: [dashboard]
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DripStack Docs — Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html"><span class="logo"><span></span></span><b>DripStack</b></a>
+    <div class="nav">
+      <div class="nav-group">Getting started</div>
+      <a class="active" href="index.html">Overview</a>
+      <a href="quickstart.html">Quickstart</a>
+      <a href="configuration.html">Configuration</a>
+      <div class="nav-group">Concepts</div>
+      <a href="architecture.html">Architecture</a>
+      <a href="security.html">Security model</a>
+      <div class="nav-group">Guides</div>
+      <a href="integrations.html">Integrations</a>
+      <a href="deployment.html">Production deployment</a>
+      <div class="nav-group">Reference</div>
+      <a href="api.html">API reference</a>
+    </div>
+  </aside>
+  <main class="content">
+    <h1>DripStack</h1>
+    <p class="lead">A Technical Lifecycle Communication Platform — event-triggered, branching
+      drip sequences of <em>technical</em> communications to technicians during incident
+      resolution and onboarding.</p>
+    <p>DripStack ingests an event (a Metasys/Sentry/API error), matches it to a sequence, and a
+      durable <strong>Temporal</strong> workflow drives a multi-step, branching conversation with the
+      technician: syntax-highlighted code, pretty-printed JSON, collapsible logs, AI plain-language
+      error explanations, and action buttons (<em>resolve</em> / <em>I need help</em>) — over email,
+      Slack, and Teams.</p>
+
+    <div class="callout">
+      New here? Jump to the <a href="quickstart.html">Quickstart</a> to run the whole platform
+      locally in a few minutes, fully keyless.
+    </div>
+
+    <h2>What's inside</h2>
+    <div class="grid">
+      <div class="card"><h3>Durable workflows</h3><p>One Temporal workflow per run — durable timers
+        survive restarts; signals (button clicks) race timeouts deterministically.</p></div>
+      <div class="card"><h3>Production integrations</h3><p>Email via Resend &amp; AWS SES, native
+        Slack/Teams delivery, signed outbound webhooks, and OIDC SSO.</p></div>
+      <div class="card"><h3>RBAC + multi-tenancy</h3><p>Strict per-org isolation, permission-gated
+        endpoints, platform vs. customer tiers, and an append-only audit log.</p></div>
+      <div class="card"><h3>Secure by default</h3><p>HMAC-signed links, POST-confirmed actions,
+        bound redirects, security headers, and a production secret guard.</p></div>
+    </div>
+
+    <h2>The stack</h2>
+    <table>
+      <tr><th>Layer</th><th>Choice</th></tr>
+      <tr><td>Backend</td><td>Python 3.12 / FastAPI (uv-managed, <code>backend/</code>)</td></tr>
+      <tr><td>Workflow engine</td><td>Temporal (<code>temporalio</code>)</td></tr>
+      <tr><td>Database</td><td>Postgres 16 + SQLAlchemy 2.0 async, tenant-scoped</td></tr>
+      <tr><td>Migrations</td><td>Alembic</td></tr>
+      <tr><td>Queue</td><td>RabbitMQ (<code>aio-pika</code>) — ingest buffer + outbound retries (DLX)</td></tr>
+      <tr><td>Email render</td><td>Jinja2 + Pygments (Outlook/Gmail-safe)</td></tr>
+      <tr><td>AI</td><td>Anthropic SDK (<code>claude-sonnet-4-6</code>) + validated fallback</td></tr>
+      <tr><td>Dashboard</td><td>Next.js 14 (App Router) + Tailwind + TanStack Query + Recharts</td></tr>
+    </table>
+
+    <h2>Where to go next</h2>
+    <ul>
+      <li><a href="quickstart.html">Quickstart</a> — run it locally.</li>
+      <li><a href="architecture.html">Architecture</a> — how events become conversations.</li>
+      <li><a href="integrations.html">Integrations</a> — email, Slack/Teams, webhooks, SSO.</li>
+      <li><a href="security.html">Security model</a> — links, auth, tenancy, hardening.</li>
+      <li><a href="deployment.html">Production deployment</a> — the go-live checklist.</li>
+      <li><a href="api.html">API reference</a> — every endpoint.</li>
+    </ul>
+
+    <footer>DripStack documentation · generated for the project repository.</footer>
+  </main>
+</div>
+</body>
+</html>

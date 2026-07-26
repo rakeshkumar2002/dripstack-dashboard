@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DripStack Docs — API reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html"><span class="logo"><span></span></span><b>DripStack</b></a>
+    <div class="nav">
+      <div class="nav-group">Getting started</div>
+      <a href="index.html">Overview</a>
+      <a href="quickstart.html">Quickstart</a>
+      <a href="configuration.html">Configuration</a>
+      <div class="nav-group">Concepts</div>
+      <a href="architecture.html">Architecture</a>
+      <a href="security.html">Security model</a>
+      <div class="nav-group">Guides</div>
+      <a href="integrations.html">Integrations</a>
+      <a href="deployment.html">Production deployment</a>
+      <div class="nav-group">Reference</div>
+      <a class="active" href="api.html">API reference</a>
+    </div>
+  </aside>
+  <main class="content">
+    <h1>API reference</h1>
+    <p class="lead">All endpoints are served by the FastAPI app on <code>APP_BASE_URL</code>.
+      Authenticated requests send <code>Authorization: Bearer &lt;accessToken&gt;</code>. Responses
+      are camelCase JSON; datetimes are ISO-8601 UTC with a trailing <code>Z</code>.</p>
+    <p>Interactive OpenAPI docs are available at <code>/docs</code> (Swagger) and <code>/redoc</code>
+      when the API is running.</p>
+
+    <h2>System</h2>
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/health</td><td>Liveness probe.</td></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/ready</td><td>Readiness probe — 503 until the DB is reachable.</td></tr>
+    </table>
+
+    <h2>Auth</h2>
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      <tr><td><span class="method post">POST</span></td><td class="endpoint">/api/v1/auth/register</td><td>Create an organization + admin user.</td></tr>
+      <tr><td><span class="method post">POST</span></td><td class="endpoint">/api/v1/auth/login</td><td>Email + password → access &amp; refresh tokens (audited).</td></tr>
+      <tr><td><span class="method post">POST</span></td><td class="endpoint">/api/v1/auth/refresh</td><td>Exchange a refresh token for new tokens.</td></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/api/v1/auth/me</td><td>Current principal: role, scope, permissions, organization.</td></tr>
+    </table>
+
+    <h2>SSO (OIDC)</h2>
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/api/v1/sso</td><td>Masked SSO config. <em>integrations.read</em></td></tr>
+      <tr><td><span class="method put">PUT</span></td><td class="endpoint">/api/v1/sso</td><td>Create/update the OIDC connection. <em>integrations.write</em></td></tr>
+      <tr><td><span class="method del">DEL</span></td><td class="endpoint">/api/v1/sso</td><td>Remove the connection. <em>integrations.write</em></td></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/api/v1/auth/sso/{org}/start</td><td>Begin the login flow → redirect to the IdP.</td></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/api/v1/auth/sso/callback</td><td>OIDC redirect URI → issues DripStack tokens.</td></tr>
+    </table>
+
+    <h2>Ingest</h2>
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      <tr><td><span class="method post">POST</span></td><td class="endpoint">/api/v1/ingest/{eventSourceId}</td><td>Public, HMAC-signed inbound webhook. Rate-limited 120/min.</td></tr>
+      <tr><td><span class="method post">POST</span></td><td class="endpoint">/api/v1/events</td><td>Authenticated event ingest via API key (<code>x-api-key</code>).</td></tr>
+    </table>
+
+    <h2>Tracking (signed links)</h2>
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/r/{runId}/action/{action}</td><td>Confirmation interstitial (no mutation).</td></tr>
+      <tr><td><span class="method post">POST</span></td><td class="endpoint">/r/{runId}/action/{action}</td><td>Perform <code>resolve</code>/<code>escalate</code> → signal the workflow.</td></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/r/{runId}/pixel.gif</td><td>Open-tracking pixel.</td></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/r/{runId}/link/{ref}</td><td>URL-bound tracked redirect.</td></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/r/{runId}/log/{blockId}</td><td>Full syntax-highlighted log/JSON/code view.</td></tr>
+    </table>
+
+    <h2>Admin (tenant-scoped)</h2>
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Description / permission</th></tr>
+      <tr><td><span class="method get">GET</span> <span class="method post">POST</span> <span class="method put">PATCH</span> <span class="method del">DEL</span></td><td class="endpoint">/api/v1/users</td><td>Org user management. <em>users.read/write/delete</em> (audited)</td></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/api/v1/audit-logs</td><td>Security audit trail. <em>users.read</em></td></tr>
+      <tr><td><span class="method get">GET</span> <span class="method post">POST</span> <span class="method put">PATCH</span> <span class="method del">DEL</span></td><td class="endpoint">/api/v1/technicians</td><td>Technician contacts. <em>technicians.read/write</em></td></tr>
+      <tr><td><span class="method get">GET</span> <span class="method put">PATCH</span></td><td class="endpoint">/api/v1/email-settings</td><td>Per-org ESP config. <em>email.write</em></td></tr>
+      <tr><td><span class="method get">GET</span> <span class="method post">POST</span> <span class="method put">PATCH</span> <span class="method del">DEL</span></td><td class="endpoint">/api/v1/sequences</td><td>Drip sequences. <em>sequences.read/write</em></td></tr>
+      <tr><td><span class="method get">GET</span> <span class="method put">PUT</span> <span class="method del">DEL</span> <span class="method post">POST</span></td><td class="endpoint">/api/v1/channels/{slack,teams}</td><td>Slack/Teams config + <code>/test</code>. <em>integrations.write</em></td></tr>
+      <tr><td><span class="method get">GET</span> <span class="method post">POST</span> <span class="method put">PATCH</span> <span class="method del">DEL</span></td><td class="endpoint">/api/v1/outbound-webhooks</td><td>Outbound webhooks. <em>integrations.write</em></td></tr>
+    </table>
+
+    <h2>Platform (cross-org)</h2>
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      <tr><td>—</td><td class="endpoint">/api/v1/platform/customers</td><td>Customer orgs CRUD + create-with-admin. <em>requires platform scope</em></td></tr>
+      <tr><td>—</td><td class="endpoint">/api/v1/platform/users</td><td>Cross-org user management.</td></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/api/v1/platform/roles</td><td>List RBAC roles.</td></tr>
+    </table>
+
+    <h2>Dashboard data</h2>
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/api/v1/runs</td><td>Run list (Kanban/List).</td></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/api/v1/runs/{id}</td><td>Run detail: timeline, messages, action clicks.</td></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/api/v1/analytics</td><td>KPIs + charts. <em>analytics.read</em></td></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/api/v1/event-sources</td><td>Ingest endpoints + signing secrets.</td></tr>
+    </table>
+
+    <h2>Dev (keyless demo)</h2>
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/dev/emails</td><td>List rendered emails (log provider).</td></tr>
+      <tr><td><span class="method get">GET</span></td><td class="endpoint">/dev/emails/{messageId}</td><td>View a single rendered email.</td></tr>
+    </table>
+
+    <footer>DripStack documentation · <a href="index.html">back to overview</a></footer>
+  </main>
+</div>
+</body>
+</html>

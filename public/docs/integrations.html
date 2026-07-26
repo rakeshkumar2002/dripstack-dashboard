@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DripStack Docs — Integrations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html"><span class="logo"><span></span></span><b>DripStack</b></a>
+    <div class="nav">
+      <div class="nav-group">Getting started</div>
+      <a href="index.html">Overview</a>
+      <a href="quickstart.html">Quickstart</a>
+      <a href="configuration.html">Configuration</a>
+      <div class="nav-group">Concepts</div>
+      <a href="architecture.html">Architecture</a>
+      <a href="security.html">Security model</a>
+      <div class="nav-group">Guides</div>
+      <a class="active" href="integrations.html">Integrations</a>
+      <a href="deployment.html">Production deployment</a>
+      <div class="nav-group">Reference</div>
+      <a href="api.html">API reference</a>
+    </div>
+  </aside>
+  <main class="content">
+    <h1>Integrations</h1>
+    <p class="lead">Every external integration is production-ready and degrades gracefully when
+      unconfigured, so the demo runs keyless.</p>
+
+    <h2>Email</h2>
+    <p>The provider is chosen per organization (Email settings page) and falls back to the env
+      <code>EMAIL_PROVIDER</code>.</p>
+    <table>
+      <tr><th>Provider</th><th>Behaviour</th><th>Setup</th></tr>
+      <tr><td><span class="badge">log</span></td><td>Renders to <code>/dev/emails</code>; sends nothing. Keyless default.</td><td>—</td></tr>
+      <tr><td><span class="badge">resend</span></td><td>Real delivery via the Resend HTTPS API.</td><td><code>EMAIL_PROVIDER=resend</code> + <code>RESEND_API_KEY</code>. Verify your sending domain in Resend.</td></tr>
+      <tr><td><span class="badge">ses</span></td><td>Real delivery via AWS SESv2 (<code>aioboto3</code>).</td><td><code>uv sync --extra ses</code>, <code>EMAIL_PROVIDER=ses</code>, <code>AWS_REGION</code>; credentials from the boto3 chain / IAM role. Optional <code>SES_CONFIGURATION_SET</code>.</td></tr>
+    </table>
+
+    <h2>Slack &amp; Teams</h2>
+    <p>Delivered natively via per-org <strong>incoming webhook URLs</strong> stored in the
+      <code>ChannelIntegration</code> table (never in <code>Organization.settings</code>, which is
+      serialized to clients). Slack receives a Block Kit message; Teams receives an Adaptive
+      MessageCard. When a channel isn't configured, a stub sender logs instead.</p>
+    <pre><code>PUT /api/v1/channels/slack
+{ "webhookUrl": "https://hooks.slack.com/services/T.../B.../xxxx", "enabled": true }
+
+POST /api/v1/channels/slack/test     # post a test message</code></pre>
+    <div class="callout">The API only ever returns a <strong>masked</strong> target
+      (<code>https://hooks.slack.com/…xxxx</code>); the raw URL is never sent back to clients.</div>
+
+    <h2>Outbound webhooks</h2>
+    <p>Subscribe external systems to run-lifecycle events
+      (<code>run.resolved</code>, <code>run.escalated</code>, <code>run.completed</code>,
+      <code>run.failed</code>). Each delivery is signed with <code>x-dripstack-signature</code> (HMAC
+      over the raw body) and retried via a dead-letter exchange (3 attempts).</p>
+    <pre><code>POST /api/v1/outbound-webhooks
+{ "url": "https://example.com/hooks/dripstack", "events": ["run.resolved","run.escalated"] }</code></pre>
+
+    <h2 id="sso">Single sign-on (OIDC)</h2>
+    <p>DripStack supports the OpenID Connect authorization-code flow, configured per organization.
+      Works with Google, Okta, Microsoft Entra ID, Auth0, and any compliant OIDC provider.</p>
+
+    <h3>1 · Configure (admin)</h3>
+    <pre><code>PUT /api/v1/sso
+{
+  "issuer": "https://accounts.google.com",
+  "clientId": "xxxx.apps.googleusercontent.com",
+  "clientSecret": "••••••",          // write-only; omit on update to keep it
+  "enabled": true,
+  "autoProvision": false,             // create users on first login?
+  "allowedDomain": "acme.com",        // optional email-domain allow-list
+  "defaultRoleSlug": "customer-member"
+}</code></pre>
+    <p>In your IdP, register the redirect URI
+      <code>{APP_BASE_URL}/api/v1/auth/sso/callback</code>. <code>GET /api/v1/sso</code> returns a
+      masked view — the client secret is never returned.</p>
+
+    <h3>2 · Sign in</h3>
+    <p>From the dashboard login screen, choose <strong>Single sign-on (OIDC)</strong>, enter the
+      organization ID, and continue. Under the hood:</p>
+    <ol>
+      <li><code>GET /api/v1/auth/sso/{org}/start</code> → redirects to the IdP with a signed,
+        short-lived <code>state</code> token.</li>
+      <li>The IdP redirects back to <code>/api/v1/auth/sso/callback</code>; DripStack exchanges the
+        code, fetches userinfo, verifies the email, and matches (or provisions) the org user.</li>
+      <li>DripStack issues its own access + refresh tokens and hands them to the dashboard's
+        <code>/sso/callback</code> page via the URL fragment.</li>
+    </ol>
+    <div class="callout">Sign-in is denied (403) when the email isn't verified, the domain isn't
+      allowed, the user doesn't exist and auto-provision is off, or the account is disabled. Every SSO
+      login is recorded in the <a href="security.html">audit log</a>.</div>
+
+    <h2>AI explanations</h2>
+    <p>Set <code>AI_PROVIDER=anthropic</code> + <code>ANTHROPIC_API_KEY</code> for real plain-language
+      error explanations (model <code>claude-sonnet-4-6</code>). The default <code>fallback</code>
+      provider produces a deterministic, schema-validated explanation with no key.</p>
+
+    <footer>DripStack documentation · <a href="index.html">back to overview</a></footer>
+  </main>
+</div>
+</body>
+</html>

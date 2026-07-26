@@ -1,0 +1,15 @@
+.git
+.github
+.gitignore
+node_modules
+.next
+tsconfig.tsbuildinfo
+.env
+.env.*
+*.md
+Dockerfile
+.dockerignore
+docker-compose*.yml
+Caddyfile
+.claude
+.DS_Store

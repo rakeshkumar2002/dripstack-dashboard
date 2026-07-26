@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DripStack Docs — Security model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html"><span class="logo"><span></span></span><b>DripStack</b></a>
+    <div class="nav">
+      <div class="nav-group">Getting started</div>
+      <a href="index.html">Overview</a>
+      <a href="quickstart.html">Quickstart</a>
+      <a href="configuration.html">Configuration</a>
+      <div class="nav-group">Concepts</div>
+      <a href="architecture.html">Architecture</a>
+      <a class="active" href="security.html">Security model</a>
+      <div class="nav-group">Guides</div>
+      <a href="integrations.html">Integrations</a>
+      <a href="deployment.html">Production deployment</a>
+      <div class="nav-group">Reference</div>
+      <a href="api.html">API reference</a>
+    </div>
+  </aside>
+  <main class="content">
+    <h1>Security model</h1>
+    <p class="lead">Defense in depth across ingestion, links, auth, tenancy, and transport.</p>
+
+    <h2>Tracked links</h2>
+    <ul>
+      <li><strong>Signed &amp; tamper-proof.</strong> Every action/log/pixel/redirect link carries an
+        HMAC token over <code>(run_id, scope, ref)</code> using <code>LINK_SIGNING_SECRET</code>.</li>
+      <li><strong>Actions require POST.</strong> A <code>GET</code> on an action link renders a
+        confirmation interstitial; the state change only happens on the <code>POST</code> the user
+        submits. This stops email/AV link-scanners and client prefetch — which issue GETs — from
+        silently resolving or escalating incidents.</li>
+      <li><strong>No open redirect.</strong> Redirect links bind the destination URL into the
+        signature and require an <code>http(s)</code> scheme, so <code>u=</code> can't be swapped for
+        a phishing target.</li>
+    </ul>
+
+    <h2>Inbound webhooks</h2>
+    <ul>
+      <li>HMAC-verified against the <strong>raw</strong> request bytes (read before JSON parsing),
+        constant-time compared. Supports a bare hex digest or a <code>sha256=</code> prefix.</li>
+      <li>Rate-limited (ingest 120/min; global 1000/min).</li>
+      <li><strong>Idempotent</strong> — duplicate payloads within 5 minutes are de-duped by hash.</li>
+    </ul>
+
+    <h2>Authentication &amp; authorization</h2>
+    <ul>
+      <li><strong>Passwords</strong> are bcrypt-hashed. SSO-provisioned users get an unusable hash so
+        they can't password-login.</li>
+      <li><strong>Tokens</strong> — short-lived access JWTs + refresh tokens (HS256).</li>
+      <li><strong>RBAC</strong> — every endpoint is gated by a permission key
+        (<code>users.write</code>, <code>integrations.write</code>, …). Three system roles:
+        integration-admin (platform), customer-admin, customer-member.</li>
+      <li><strong>Tenant isolation</strong> — every table carries <code>organization_id</code>;
+        <code>for_org()</code> injects the scope into every query, so a handler physically cannot read
+        or write across organizations. Proven by <code>test_tenant.py</code>.</li>
+      <li><strong>Last-admin protection</strong> — you cannot demote/disable/delete the org's last
+        active admin, or your own admin access.</li>
+    </ul>
+
+    <h2>Audit log</h2>
+    <p>An append-only <code>AuditLog</code> records security-relevant actions — logins (success and
+      failure), SSO logins, user create/update/delete, SSO configuration — with actor, target,
+      hashed client IP, and metadata. Read via <code>GET /api/v1/audit-logs</code> (requires
+      <code>users.read</code>).</p>
+
+    <h2>Secrets handling</h2>
+    <ul>
+      <li>Channel webhook URLs and SSO client secrets live in dedicated tables, never in
+        <code>Organization.settings</code> (which is serialized to clients). APIs return masked
+        views only.</li>
+      <li><strong>Production secret guard:</strong> with <code>NODE_ENV=production</code>, the API and
+        worker refuse to boot if <code>JWT_ACCESS_SECRET</code>, <code>JWT_REFRESH_SECRET</code>, or
+        <code>LINK_SIGNING_SECRET</code> are still defaults or shorter than 32 characters.</li>
+    </ul>
+
+    <h2>Transport &amp; headers</h2>
+    <ul>
+      <li>CORS is locked to <code>DASHBOARD_URL</code>.</li>
+      <li>Every response carries <code>X-Content-Type-Options: nosniff</code>,
+        <code>X-Frame-Options: DENY</code>, <code>Referrer-Policy</code>,
+        <code>Cross-Origin-Opener-Policy</code>, and <code>Permissions-Policy</code>; HSTS is added in
+        production.</li>
+      <li>Outbound webhooks are signed with <code>x-dripstack-signature</code>.</li>
+    </ul>
+
+    <h2>Reporting</h2>
+    <p>For a real deployment, route security reports to a monitored inbox and rotate
+      <code>JWT_*</code> / <code>LINK_SIGNING_SECRET</code> on a schedule.</p>
+
+    <footer>DripStack documentation · <a href="index.html">back to overview</a></footer>
+  </main>
+</div>
+</body>
+</html>
