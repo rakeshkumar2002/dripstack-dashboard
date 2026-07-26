@@ -48,7 +48,7 @@
 # Postgres :5432 · RabbitMQ + UI :15672 · Temporal + UI :8233</code></pre>
 
     <h2>3 · Create the schema &amp; seed</h2>
-    <pre><code>cd backend
+    <pre><code># in the dripstack-backend repo
 uv sync
 uv run alembic upgrade head
 uv run seed          # prints demo logins + writes scripts/.demo-env</code></pre>
@@ -59,7 +59,7 @@ uv run seed          # prints demo logins + writes scripts/.demo-env</code></pre
 uv run worker        # Temporal worker + RabbitMQ consumers</code></pre>
 
     <h2>5 · Run the dashboard</h2>
-    <pre><code>pnpm --filter @dripstack/dashboard dev   # Next.js on :3000</code></pre>
+    <pre><code>pnpm dev   # Next.js on :3000  (in dripstack-dashboard)</code></pre>
 
     <h2>6 · Fire the sample event</h2>
     <pre><code>./scripts/fire-demo-event.sh</code></pre>
@@ -84,7 +84,7 @@ uv run worker        # Temporal worker + RabbitMQ consumers</code></pre>
       <code>IntegrationDemo!23</code>.</div>
 
     <h2>Tests &amp; lint</h2>
-    <pre><code>cd backend
+    <pre><code># in the dripstack-backend repo
 uv run pytest                 # full suite (unit + DB + time-skipping workflow)
 uv run ruff check src tests</code></pre>
 

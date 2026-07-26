@@ -52,7 +52,7 @@ LINK_SIGNING_SECRET=$(openssl rand -hex 32)</code></pre>
       with default or weak secrets. This is intentional.</div>
 
     <h2>3 · Migrate &amp; seed</h2>
-    <pre><code>cd backend
+    <pre><code># in the dripstack-backend repo
 uv sync                      # add --extra ses for AWS SES
 uv run alembic upgrade head
 uv run seed                  # once, to create the platform org + roles</code></pre>
@@ -75,8 +75,8 @@ uv run worker</code></pre>
     </table>
 
     <h2>6 · Dashboard</h2>
-    <pre><code>pnpm --filter @dripstack/dashboard build
-pnpm --filter @dripstack/dashboard start   # Next.js production server</code></pre>
+    <pre><code>pnpm build
+pnpm start   # Next.js production server</code></pre>
     <p>Set <code>NEXT_PUBLIC_API_URL</code> to your API's public URL at build time.</p>
 
     <h2>7 · Operational notes</h2>
