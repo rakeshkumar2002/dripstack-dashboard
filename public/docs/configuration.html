@@ -77,10 +77,20 @@
     <h2>AI</h2>
     <table>
       <tr><th>Variable</th><th>Purpose</th></tr>
-      <tr><td><code>AI_PROVIDER</code></td><td><code>fallback</code> (deterministic, keyless) · <code>anthropic</code>.</td></tr>
+      <tr><td><code>AI_PROVIDER</code></td><td><code>fallback</code> (deterministic, keyless) · <code>anthropic</code> · <code>openrouter</code>.</td></tr>
       <tr><td><code>ANTHROPIC_API_KEY</code></td><td>Required for <code>anthropic</code>.</td></tr>
-      <tr><td><code>AI_MODEL</code></td><td>Model id. Default <code>claude-sonnet-4-6</code>.</td></tr>
+      <tr><td><code>OPENROUTER_API_KEY</code> / <code>OPENROUTER_BASE_URL</code></td><td>For <code>openrouter</code>, an OpenAI-compatible gateway that routes to many models — including free ones. Base URL defaults to <code>https://openrouter.ai/api/v1</code>.</td></tr>
+      <tr><td><code>AI_MODEL</code></td><td>Model id. Default <code>claude-sonnet-4-6</code>; for OpenRouter use a routed id such as <code>inclusionai/ling-3.0-flash:free</code>.</td></tr>
     </table>
+
+    <h2>Google sign-in</h2>
+    <p>Platform-level, unlike the per-organization OIDC connection below: one Google OAuth app for the whole deployment, so there is no organization to choose at the login screen. Unset these and the login page hides the button.</p>
+    <table>
+      <tr><th>Variable</th><th>Purpose</th></tr>
+      <tr><td><code>GOOGLE_CLIENT_ID</code> / <code>GOOGLE_CLIENT_SECRET</code></td><td>From an OAuth 2.0 Client ID (type: <em>Web application</em>) in the Google Cloud console.</td></tr>
+      <tr><td><code>GOOGLE_ISSUER</code></td><td>Defaults to <code>https://accounts.google.com</code>; override only to point at a compatible test issuer.</td></tr>
+    </table>
+    <p>Register the redirect URI <code>APP_BASE_URL + /api/v1/auth/google/callback</code> on the OAuth client — Google matches it exactly, including scheme and port. A verified Google email is resolved to its DripStack user by <code>User.email</code>, which is globally unique; an email with no user is <strong>rejected, never provisioned</strong>.</p>
 
     <p>SSO is configured <em>per organization</em> at runtime, not via env — see
       <a href="integrations.html#sso">Integrations → SSO</a>.</p>

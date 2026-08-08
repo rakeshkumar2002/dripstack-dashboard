@@ -2,8 +2,41 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-import { api, apiBase, setToken } from '@/app/lib/api';
+import { api, ApiError, apiBase, setToken } from '@/app/lib/api';
 import { C } from '@/components/ui';
+
+// Reasons the API hands back on ?sso_error=, turned into something a person can
+// act on. Anything unrecognised falls through to the raw code.
+const SSO_ERRORS: Record<string, string> = {
+  no_account: 'That Google account has no DripStack user. Ask an admin to invite you first.',
+  account_disabled: 'That account has been disabled.',
+  email_not_verified: 'Google has not verified that email address.',
+  access_denied: 'Sign-in was cancelled.',
+};
+
+/** Google's four-colour "G", inlined — the CSP on this app blocks remote images. */
+function GoogleMark() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"
+      />
+      <path
+        fill="#34A853"
+        d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M11.69 28.18c-.44-1.32-.69-2.73-.69-4.18s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24s.85 6.91 2.34 9.88l7.35-5.7z"
+      />
+      <path
+        fill="#EA4335"
+        d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"
+      />
+    </svg>
+  );
+}
 
 export default function LoginPage() {
   // useSearchParams() must sit under a Suspense boundary for the App Router build.
@@ -17,27 +50,53 @@ export default function LoginPage() {
 function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
-  const [email, setEmail] = useState('demo@dripstack.dev');
-  const [password, setPassword] = useState('DripStackDemo!23');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [ssoOpen, setSsoOpen] = useState(false);
-  const [ssoOrg, setSsoOrg] = useState('');
+  const [ssoBusy, setSsoBusy] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
 
-  // Surface an SSO failure handed back by the callback (?sso_error=...).
+  // Surface a failure handed back by the OIDC/Google callback (?sso_error=...).
   useEffect(() => {
     const e = params.get('sso_error');
-    if (e) setError(`SSO sign-in failed: ${e}`);
+    if (e) setError(SSO_ERRORS[e] ?? `Sign-in failed: ${e}`);
   }, [params]);
 
-  function startSso() {
-    const org = ssoOrg.trim();
-    if (!org) {
-      setError('Enter your organization ID to continue with SSO.');
+  // Only offer Google if the deployment actually has credentials — a button
+  // that 404s is worse than no button.
+  useEffect(() => {
+    api<{ google: boolean }>('/api/v1/auth/providers')
+      .then((p) => setGoogleEnabled(p.google))
+      .catch(() => setGoogleEnabled(false));
+  }, []);
+
+  /**
+   * SSO is per-organization, but nobody knows their org id — so resolve it from
+   * the email domain first, then hand off to the authorization-code flow.
+   */
+  async function startSso() {
+    const addr = email.trim();
+    if (!addr.includes('@')) {
+      setError('Enter your work email first — SSO is matched on its domain.');
       return;
     }
-    window.location.href = `${apiBase()}/api/v1/auth/sso/${encodeURIComponent(org)}/start`;
+    setSsoBusy(true);
+    setError(null);
+    try {
+      const { orgId } = await api<{ orgId: string }>('/api/v1/auth/sso/discover', {
+        method: 'POST',
+        body: JSON.stringify({ email: addr }),
+      });
+      window.location.href = `${apiBase()}/api/v1/auth/sso/${encodeURIComponent(orgId)}/start`;
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.status === 404
+          ? 'No single sign-on is configured for that email domain.'
+          : 'Could not start single sign-on.',
+      );
+      setSsoBusy(false);
+    }
   }
 
   async function submit(e: React.FormEvent) {
@@ -107,67 +166,30 @@ function LoginInner() {
             </div>
           </div>
 
-          <div className="mt-1 flex flex-col gap-[11px]">
-            {[
-              { k: 'G', label: 'Continue with Google' },
-              { k: '⊞', label: 'Continue with Microsoft' },
-            ].map((p) => (
-              <button
-                key={p.label}
-                type="button"
-                onClick={() => setNote('SSO is not configured in this demo — use the work email below.')}
-                className={ssoBtn}
-                style={{ borderColor: '#d6dae3', color: C.ink }}
-              >
-                <span
-                  className="flex h-[22px] w-[22px] items-center justify-center rounded-[6px] font-mono text-[12px]"
-                  style={{ border: '1px solid #d6dae3', color: C.muted }}
-                >
-                  {p.k}
-                </span>
-                {p.label}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => setSsoOpen((v) => !v)}
-              className={ssoBtn}
-              style={{ borderColor: C.blueBorder, background: C.blueTint, color: C.blue, fontWeight: 600 }}
-            >
-              <span className="flex h-[22px] w-[22px] items-center justify-center rounded-[6px] text-[12px]" style={{ border: `1px solid ${C.blueBorder}` }}>
-                ⚷
-              </span>
-              Single sign-on (OIDC)
-            </button>
-            {ssoOpen ? (
-              <div className="flex gap-2">
-                <input
-                  value={ssoOrg}
-                  onChange={(e) => setSsoOrg(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && startSso()}
-                  placeholder="Organization ID"
-                  className="h-11 flex-1 rounded-[11px] border bg-white px-[15px] font-mono text-[12px] outline-none"
-                  style={{ borderColor: '#d6dae3' }}
-                />
+          {googleEnabled ? (
+            <>
+              <div className="mt-1">
                 <button
                   type="button"
-                  onClick={startSso}
-                  className="h-11 rounded-[11px] px-4 text-[13px] font-semibold text-white"
-                  style={{ background: C.blue }}
+                  onClick={() => {
+                    window.location.href = `${apiBase()}/api/v1/auth/google/start`;
+                  }}
+                  className={`${ssoBtn} w-full justify-center`}
+                  style={{ borderColor: '#d6dae3', color: C.ink }}
                 >
-                  Go →
+                  <GoogleMark />
+                  Continue with Google
                 </button>
               </div>
-            ) : null}
-          </div>
-
-          <div className="my-[5px] flex items-center gap-3">
-            <span className="h-px flex-1" style={{ background: C.border }} />
-            <span className="font-mono text-[11px]" style={{ color: '#b6bccb' }}>
-              or
-            </span>
-            <span className="h-px flex-1" style={{ background: C.border }} />
-          </div>
+              <div className="my-[5px] flex items-center gap-3">
+                <span className="h-px flex-1" style={{ background: C.border }} />
+                <span className="font-mono text-[11px]" style={{ color: '#b6bccb' }}>
+                  or
+                </span>
+                <span className="h-px flex-1" style={{ background: C.border }} />
+              </div>
+            </>
+          ) : null}
 
           <div>
             <div className="mb-[7px] font-mono text-[10px] tracking-[.5px]" style={{ color: C.fainter }}>
@@ -177,6 +199,8 @@ function LoginInner() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               type="email"
+              autoComplete="username"
+              placeholder="you@company.com"
               className="h-[46px] w-full rounded-[11px] border bg-white px-[15px] font-mono text-[13px] outline-none"
               style={{ borderColor: '#d6dae3' }}
             />
@@ -189,6 +213,7 @@ function LoginInner() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               type="password"
+              autoComplete="current-password"
               className="h-[46px] w-full rounded-[11px] border bg-white px-[15px] font-mono text-[13px] outline-none"
               style={{ borderColor: '#d6dae3' }}
             />
@@ -197,10 +222,6 @@ function LoginInner() {
           {error ? (
             <p className="m-0 text-[13px]" style={{ color: C.redInk }}>
               {error}
-            </p>
-          ) : note ? (
-            <p className="m-0 text-[13px]" style={{ color: C.faint }}>
-              {note}
             </p>
           ) : null}
 
@@ -211,9 +232,17 @@ function LoginInner() {
           >
             {loading ? 'Signing in…' : 'Continue →'}
           </button>
-          <p className="m-0 text-center font-mono text-[11px]" style={{ color: '#b6bccb' }}>
-            Demo credentials are prefilled.
-          </p>
+
+          {/* Reads the email above rather than asking for an org id — see startSso(). */}
+          <button
+            type="button"
+            onClick={startSso}
+            disabled={ssoBusy}
+            className="m-0 text-center text-[12.5px] disabled:opacity-60"
+            style={{ color: C.blue }}
+          >
+            {ssoBusy ? 'Redirecting…' : 'Use single sign-on (OIDC) instead'}
+          </button>
         </form>
       </div>
     </div>
