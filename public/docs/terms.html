@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>DripStack Docs — Security model</title>
+<title>DripStack Docs — Terms of Service</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="styles.css" />
@@ -28,51 +28,19 @@
       <a href="integrations.html">Integrations</a>
       <div class="nav-group">Reference</div>
       <a href="api.html">API reference</a>
-      <a class="active" href="security.html">Security</a>
+      <a href="security.html">Security</a>
     </div>
   </aside>
   <main class="content">
-    <h1>Security</h1>
-    <p class="lead">What protects your data, in plain terms. If you need implementation detail for a
-      security review, ask us — we will share it under NDA rather than publish it.</p>
-
-    <h2>Your data stays in your organization</h2>
-    <p>Every read is scoped to the organization the request is authenticated for. A token issued to
-      one organization cannot see another's incidents, contacts, or settings — not by convention, but
-      because the scope is applied at the data layer on every query.</p>
-    <p>Within your organization, access is controlled by role. Members can be limited to read-only,
-      and only administrators can change settings, invite people, or rotate credentials.</p>
-
-    <h2>Events you send us are authenticated</h2>
-    <p>Inbound events are signed with a secret only you and DripStack hold. An unsigned or
-      incorrectly signed request is rejected before it is read. The same scheme runs in reverse for
-      callbacks, so your systems can confirm a message genuinely came from us.</p>
-    <p>Secrets are shown once when created, stored separately from the rest of your configuration,
-      and never returned by the API afterwards — reads give you a masked view.</p>
-
-    <h2>Links in emails are safe to open</h2>
-    <p>Every action and log link is signed and bound to a single incident. A link that has been
-      altered, or reused for a different incident, stops working.</p>
-    <p>Opening a link never changes anything on its own — it shows a confirmation page, and the
-      technician has to press the button. That is what stops mail scanners and link previewers from
-      silently closing incidents on someone's behalf.</p>
-
-    <h2>Sign-in</h2>
-    <p>Passwords are hashed, never stored or logged in the clear. You can require single sign-on
-      through your own identity provider, restrict it to your email domain, and choose whether new
-      people are created automatically or must be invited.</p>
-
-    <h2>There is a record</h2>
-    <p>Sign-ins, permission changes, configuration changes and user management are written to an
-      append-only audit log, visible to your administrators and scoped to your organization.</p>
-
-    <h2>In transit</h2>
-    <p>All traffic is served over HTTPS with modern transport security, and the application sets
-      standard browser protections against framing and content-type confusion.</p>
-
-    <h2>Reporting a problem</h2>
-    <p>If you believe you have found a vulnerability, contact us directly rather than opening a
-      public issue. We will acknowledge and keep you updated on the fix.</p>
+    <h1>Terms of Service</h1>
+    <p class="lead">Not yet published.</p>
+    <div class="callout warn"><strong>Placeholder.</strong> This page exists so the link is not broken.
+      A Terms of Service needs to be written and reviewed by someone qualified — it should not be drafted from a
+      template. Until then, treat nothing here as binding.</div>
+    <h2>In the meantime</h2>
+    <p>If you need contractual or data-protection terms before you can proceed — a DPA, a security
+      questionnaire, a signed agreement — contact us directly at
+      <a href="mailto:legal@dripstack.dev">legal@dripstack.dev</a> and we will handle it in writing.</p>
   </main>
 </div>
 <footer class="site-footer">
@@ -97,7 +65,7 @@
         <a href="integration-guide.html">Integration guide</a>
         <a href="integrations.html">Integrations</a>
         <a href="api.html">API reference</a>
-        <a class="active" href="security.html">Security</a>
+        <a href="security.html">Security</a>
       </div>
       <div class="foot-col">
         <h4>Application</h4>
@@ -108,7 +76,7 @@
       </div>
       <div class="foot-col">
         <h4>Contribute</h4>
-        <a href="https://github.com/rakeshkumar2002/dripstack-dashboard/blob/main/public/docs/security.html">Edit this page</a>
+        <a href="https://github.com/rakeshkumar2002/dripstack-dashboard/blob/main/public/docs/terms.html">Edit this page</a>
         <a href="https://github.com/rakeshkumar2002/dripstack-dashboard/issues/new?labels=docs&amp;title=Docs%3A+">Report a docs issue</a>
         <a href="mailto:support@dripstack.dev">Contact support</a>
         <a href="mailto:security@dripstack.dev">Report a vulnerability</a>
@@ -136,17 +104,36 @@
 <script>
   (function () {
     var root = document.documentElement;
-    var saved = null;
-    try { saved = localStorage.getItem('ds-docs-theme'); } catch (e) {}
-    if (saved) root.setAttribute('data-theme', saved);
+    try { var s = localStorage.getItem('ds-docs-theme'); if (s) root.setAttribute('data-theme', s); } catch (e) {}
     var btn = document.getElementById('themeToggle');
-    if (!btn) return;
-    btn.addEventListener('click', function () {
-      var isDark = root.getAttribute('data-theme') === 'dark'
+    if (btn) btn.addEventListener('click', function () {
+      var dark = root.getAttribute('data-theme') === 'dark'
         || (!root.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
-      var next = isDark ? 'light' : 'dark';
+      var next = dark ? 'light' : 'dark';
       root.setAttribute('data-theme', next);
       try { localStorage.setItem('ds-docs-theme', next); } catch (e) {}
+    });
+
+    // Read from the document itself rather than a hardcoded string, so the
+    // stamp cannot drift from the file that is actually being served.
+    var el = document.getElementById('lastUpdated');
+    if (el && document.lastModified) {
+      var d = new Date(document.lastModified);
+      if (!isNaN(d)) el.textContent = 'updated ' + d.toLocaleDateString(undefined,
+        { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    // No list is stored here and no endpoint exists — hand off to mail rather
+    // than fake a success state.
+    var f = document.getElementById('subscribeForm');
+    if (f) f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var v = document.getElementById('subEmail').value.trim();
+      if (!v) return;
+      window.location.href = 'mailto:hello@dripstack.dev'
+        + '?subject=' + encodeURIComponent('Subscribe to DripStack updates')
+        + '&body=' + encodeURIComponent('Please add ' + v + ' to the DripStack product and API updates list.');
+      document.getElementById('subNote').textContent = 'Opening your mail client…';
     });
   })();
 </script>

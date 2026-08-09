@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Integration guide · DripStack</title>
+<style>
+  :root {
+    --ground:#f4f5f8; --surface:#ffffff; --raised:#fbfbfd;
+    --line:#e2e5ec; --line-soft:#eceff5;
+    --ink:#11131a; --muted:#5b616e; --faint:#8b909c;
+    --accent:#2f5fd0; --accent-ink:#2750b8; --accent-tint:#eef3ff; --accent-line:#c9d8fb;
+    --warn:#a8780a; --warn-tint:#faf1db;
+    --code-bg:#12161f; --code-ink:#c9d4e8;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --rail: 232px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:#0e1119; --surface:#161a24; --raised:#1b2029;
+      --line:#272d3a; --line-soft:#20242f;
+      --ink:#e8eaf0; --muted:#98a0b0; --faint:#6f7688;
+      --accent:#6f9bff; --accent-ink:#8fb2ff; --accent-tint:#18203a; --accent-line:#2c3b64;
+      --warn:#d9a441; --warn-tint:#2a2213;
+      --code-bg:#0a0d14; --code-ink:#c2cee4;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0e1119; --surface:#161a24; --raised:#1b2029;
+    --line:#272d3a; --line-soft:#20242f;
+    --ink:#e8eaf0; --muted:#98a0b0; --faint:#6f7688;
+    --accent:#6f9bff; --accent-ink:#8fb2ff; --accent-tint:#18203a; --accent-line:#2c3b64;
+    --warn:#d9a441; --warn-tint:#2a2213;
+    --code-bg:#0a0d14; --code-ink:#c2cee4;
+  }
+  :root[data-theme="light"] {
+    --ground:#f4f5f8; --surface:#ffffff; --raised:#fbfbfd;
+    --line:#e2e5ec; --line-soft:#eceff5;
+    --ink:#11131a; --muted:#5b616e; --faint:#8b909c;
+    --accent:#2f5fd0; --accent-ink:#2750b8; --accent-tint:#eef3ff; --accent-line:#c9d8fb;
+    --warn:#a8780a; --warn-tint:#faf1db;
+    --code-bg:#12161f; --code-ink:#c9d4e8;
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--ground); color:var(--ink);
+    font:16px/1.65 var(--sans); -webkit-font-smoothing:antialiased;
+  }
+  a { color:var(--accent); text-decoration-thickness:1px; text-underline-offset:2px; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:3px; }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; } }
+
+  .masthead {
+    position:sticky; top:0; z-index:30;
+    background:var(--surface); border-bottom:1px solid var(--line);
+    padding:12px 22px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:650; letter-spacing:-.2px;
+           color:var(--ink); text-decoration:none; }
+  .glyph { width:24px; height:24px; border-radius:7px; background:var(--accent);
+           display:grid; place-items:center; flex:none; }
+  .glyph i { width:9px; height:9px; border:2px solid #fff; border-radius:3px; display:block; }
+  .kicker { font:11px/1 var(--mono); letter-spacing:.10em; text-transform:uppercase;
+            color:var(--faint); padding-left:12px; border-left:1px solid var(--line); }
+  .grow { flex:1 1 40px; }
+  .btn {
+    font:12.5px/1 var(--mono); letter-spacing:.02em;
+    padding:9px 13px; border-radius:8px; border:1px solid var(--line);
+    background:var(--raised); color:var(--ink); text-decoration:none; white-space:nowrap;
+    transition:border-color .15s, background .15s;
+  }
+  .btn:hover { border-color:var(--accent-line); background:var(--accent-tint); }
+  .btn.solid { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .btn.solid:hover { background:var(--accent-ink); border-color:var(--accent-ink); }
+
+  .layout { display:grid; grid-template-columns:var(--rail) minmax(0,1fr); align-items:start; }
+  .rail {
+    position:sticky; top:57px; align-self:start; max-height:calc(100vh - 57px); overflow-y:auto;
+    padding:26px 14px 40px 22px; border-right:1px solid var(--line);
+  }
+  .rail-group { font:10.5px/1 var(--mono); letter-spacing:.12em; text-transform:uppercase;
+                color:var(--faint); margin:22px 0 9px 9px; }
+  .rail-group:first-child { margin-top:0; }
+  .rail a {
+    display:block; padding:6px 10px; border-radius:7px; text-decoration:none;
+    color:var(--muted); font-size:13.5px; border-left:2px solid transparent;
+    transition:color .12s, background .12s;
+  }
+  .rail a:hover { color:var(--ink); background:var(--line-soft); }
+  .rail a.on { color:var(--accent); background:var(--accent-tint); border-left-color:var(--accent); font-weight:600; }
+  .rail .back { color:var(--faint); font-size:12.5px; margin-bottom:14px; }
+
+  main { padding:44px 34px 120px; min-width:0; }
+  .col { max-width:70ch; }
+  section { scroll-margin-top:74px; padding-bottom:14px; }
+  section + section { margin-top:52px; padding-top:38px; border-top:1px solid var(--line-soft); }
+
+  .eyebrow { font:10.5px/1 var(--mono); letter-spacing:.14em; text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
+  h1 { font-size:36px; line-height:1.12; letter-spacing:-.032em; font-weight:700; margin:0 0 12px; text-wrap:balance; }
+  h2 { font-size:23px; line-height:1.22; letter-spacing:-.022em; font-weight:660; margin:0 0 12px; text-wrap:balance; }
+  h3 { font-size:15.5px; letter-spacing:-.008em; font-weight:650; margin:26px 0 8px; }
+  p { margin:0 0 14px; color:var(--muted); }
+  .col > p:first-of-type { color:var(--ink); }
+  strong { color:var(--ink); font-weight:640; }
+  .lede { font-size:18.5px; line-height:1.55; color:var(--ink); }
+  ul { margin:0 0 14px; padding-left:20px; color:var(--muted); }
+  li { margin-bottom:6px; }
+  li::marker { color:var(--faint); }
+  code:not(pre code) {
+    font:.875em var(--mono); background:var(--line-soft); color:var(--ink);
+    padding:1.5px 5px; border-radius:4px; border:1px solid var(--line-soft);
+  }
+
+  .code { position:relative; margin:0 0 16px; border-radius:11px; overflow:hidden; border:1px solid var(--line); }
+  .code-bar { display:flex; align-items:center; gap:4px; padding:7px 9px;
+              background:var(--raised); border-bottom:1px solid var(--line); }
+  .tab { font:11.5px/1 var(--mono); letter-spacing:.03em; padding:6px 11px; border-radius:6px;
+         border:0; background:transparent; color:var(--muted); cursor:pointer; }
+  .tab:hover { color:var(--ink); }
+  .tab[aria-selected="true"] { background:var(--accent-tint); color:var(--accent); font-weight:600; }
+  .code-name { font:11.5px/1 var(--mono); color:var(--faint); padding:6px 4px; }
+  .copy { margin-left:auto; font:11px/1 var(--mono); letter-spacing:.04em; text-transform:uppercase;
+          padding:6px 10px; border-radius:6px; border:1px solid var(--line);
+          background:var(--surface); color:var(--muted); cursor:pointer; }
+  .copy:hover { color:var(--accent); border-color:var(--accent-line); }
+  pre { margin:0; padding:15px 17px; background:var(--code-bg); color:var(--code-ink);
+        font:12.9px/1.72 var(--mono); overflow-x:auto; }
+  pre b { color:#7fb4ff; font-weight:400; }
+  pre i { color:#8d97ad; font-style:normal; }
+  pre u { color:#7fd6a8; text-decoration:none; }
+
+  .pipe { display:flex; gap:6px; overflow-x:auto; padding:4px 0 12px; }
+  .stage { flex:1 1 0; min-width:112px; text-align:left; cursor:pointer;
+           border:1px solid var(--line); border-radius:10px; background:var(--surface);
+           padding:11px 12px; transition:border-color .15s, background .15s; }
+  .stage:hover { border-color:var(--accent-line); }
+  .stage[aria-pressed="true"] { border-color:var(--accent); background:var(--accent-tint); }
+  .stage .n { font:10px/1 var(--mono); letter-spacing:.1em; color:var(--faint); }
+  .stage[aria-pressed="true"] .n { color:var(--accent); }
+  .stage .t { font-size:13px; font-weight:620; margin-top:6px; color:var(--ink); }
+  .stage .w { font:10.5px/1.3 var(--mono); color:var(--faint); margin-top:4px; }
+  .stage-detail { border:1px solid var(--line); border-left:3px solid var(--accent);
+                  border-radius:9px; background:var(--raised); padding:14px 16px;
+                  font-size:14.5px; color:var(--muted); }
+  .stage-detail strong { display:block; color:var(--ink); margin-bottom:4px; font-size:14px; }
+
+  .pg { border:1px solid var(--accent-line); border-radius:12px; background:var(--surface); overflow:hidden; }
+  .pg-head { padding:13px 16px; background:var(--accent-tint); border-bottom:1px solid var(--accent-line); }
+  .pg-head .t { font-size:14.5px; font-weight:650; color:var(--ink); }
+  .pg-head .s { font:11.5px/1.45 var(--mono); color:var(--muted); margin-top:3px; }
+  .pg-body { padding:15px 16px; display:flex; flex-direction:column; gap:12px; }
+  .field label { display:block; font:10.5px/1 var(--mono); letter-spacing:.11em;
+                 text-transform:uppercase; color:var(--faint); margin-bottom:6px; }
+  .field input, .field textarea {
+    width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px;
+    background:var(--ground); color:var(--ink); font:12.5px/1.6 var(--mono); resize:vertical;
+  }
+  .out { background:var(--code-bg); color:var(--code-ink); border-radius:9px; padding:13px 15px;
+         font:12.4px/1.7 var(--mono); overflow-x:auto; word-break:break-all; }
+  .out .k { color:#8d97ad; }
+  .out .v { color:#7fd6a8; }
+
+  .tw { overflow-x:auto; margin:0 0 16px; border:1px solid var(--line); border-radius:10px; }
+  table { border-collapse:collapse; width:100%; font-size:14px; background:var(--surface); }
+  th { text-align:left; font:10.5px/1 var(--mono); letter-spacing:.11em; text-transform:uppercase;
+       color:var(--faint); padding:11px 14px; border-bottom:1px solid var(--line);
+       white-space:nowrap; background:var(--raised); }
+  td { padding:10px 14px; border-bottom:1px solid var(--line-soft); color:var(--muted); vertical-align:top; }
+  tr:last-child td { border-bottom:0; }
+  td:first-child { color:var(--ink); font-weight:560; }
+  td code { white-space:nowrap; }
+
+  .note { border-radius:10px; padding:13px 16px; margin:0 0 16px; font-size:14.5px;
+          border:1px solid var(--line); border-left:3px solid var(--faint);
+          background:var(--raised); color:var(--muted); }
+  .note.warn { border-left-color:var(--warn); background:var(--warn-tint); }
+  .note b { color:var(--ink); }
+
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; margin-bottom:16px; }
+  .card { border:1px solid var(--line); border-radius:11px; padding:15px 16px; background:var(--surface); }
+  .card .h { font-size:14.5px; font-weight:650; color:var(--ink); margin-bottom:5px; }
+  .card p { font-size:13.5px; margin:0; }
+
+  .launch { display:flex; gap:10px; flex-wrap:wrap; margin:22px 0 4px; }
+  .launch a { font-size:13px; padding:11px 16px; }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns:1fr; }
+    .rail { position:static; max-height:none; border-right:0; border-bottom:1px solid var(--line);
+            padding:12px 18px; display:flex; gap:4px; overflow-x:auto; white-space:nowrap; }
+    .rail-group, .rail .back { display:none; }
+    .rail a { border-left:0; border-bottom:2px solid transparent; border-radius:6px; }
+    .rail a.on { border-left:0; border-bottom-color:var(--accent); }
+    main { padding:28px 18px 90px; }
+    h1 { font-size:29px; }
+  }
+
+  .site-footer { border-top:1px solid var(--line); background:var(--surface); margin-top:0; }
+  .site-footer .inner { max-width:1180px; margin:0 auto; padding:40px 34px 22px; }
+  .foot-grid { display:grid; grid-template-columns:1.6fr repeat(3,1fr); gap:32px; }
+  .foot-brand p { font-size:14px; color:var(--muted); margin:0 0 14px; max-width:34ch; }
+  .foot-brand .brand { margin-bottom:12px; }
+  .foot-col h4 { font:10.5px/1 var(--mono); letter-spacing:.09em; text-transform:uppercase;
+                 color:var(--faint); margin:0 0 10px; font-weight:500; }
+  .foot-col a { display:block; font-size:14px; color:var(--muted); text-decoration:none; padding:4px 0; }
+  .foot-col a:hover { color:var(--accent); }
+  .foot-bottom { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:30px;
+                 padding-top:18px; border-top:1px solid var(--line-soft);
+                 font:11.5px var(--mono); color:var(--faint); }
+  .foot-bottom .sp { flex:1 1 20px; }
+  .foot-bottom a { color:var(--faint); text-decoration:none; }
+  .foot-bottom a:hover { color:var(--accent); }
+  @media (max-width:980px){ .foot-grid{grid-template-columns:1fr 1fr;gap:26px} .site-footer .inner{padding:32px 18px 20px} }
+  @media (max-width:860px){ .foot-grid{grid-template-columns:1fr} }
+
+  .subscribe label { display:block; font:10.5px/1 var(--mono); letter-spacing:.09em;
+    text-transform:uppercase; color:var(--faint); margin-bottom:8px; }
+  .subscribe-row { display:flex; gap:8px; }
+  .subscribe input { flex:1 1 auto; min-width:0; padding:9px 12px; font:14px var(--sans);
+    border:1px solid var(--line); border-radius:9px; background:var(--ground); color:var(--ink); }
+  .subscribe input:focus { border-color:var(--accent-line); }
+  .subscribe button { border:0; cursor:pointer; }
+  .subscribe-note { font-size:12px; color:var(--faint); margin:8px 0 0; }
+  .built-by { display:flex; align-items:center; justify-content:center; gap:7px; flex-wrap:wrap; margin:32px 0 0;
+    padding-top:22px; border-top:1px solid var(--line-soft); font-size:13px; color:var(--faint); }
+  .built-by strong { color:var(--muted); font-weight:600; margin-right:3px; }
+  .built-by a { display:inline-flex; color:var(--faint); }
+  .built-by a:hover { color:var(--accent); }
+  .built-by svg { width:15px; height:15px; fill:currentColor; display:block; }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <a class="brand" href="index.html"><span class="glyph"><i></i></span>DripStack</a>
+  <span class="kicker">Integration guide</span>
+  <span class="grow"></span>
+  <a class="btn" href="/signup">Create an org</a>
+  <a class="btn solid" href="/login">Open the app →</a>
+</header>
+
+<div class="layout">
+  <nav class="rail" id="rail" aria-label="Sections">
+    <a class="back" href="index.html">← All documentation</a>
+    <div class="rail-group">Orientation</div>
+    <a href="#what">What it is</a>
+    <a href="#pipeline">How it works</a>
+    <div class="rail-group">Build</div>
+    <a href="#send">1 · Send an event</a>
+    <a href="#receive">2 · Receive callbacks</a>
+    <a href="#signature">Signature tool</a>
+    <a href="#gotchas">Known traps</a>
+    <div class="rail-group">Reference</div>
+    <a href="#api">API surface</a>
+    <a href="#access">Sign-in options</a>
+    <a href="#limits">Known limits</a>
+  </nav>
+
+  <main>
+    <div class="col">
+
+      <section id="what">
+        <div class="eyebrow">Orientation</div>
+        <h1>Turn a machine error into something a technician can act on</h1>
+        <p class="lede">DripStack takes a raw error from your product, explains it in plain English, emails
+        the person standing in front of the equipment, and runs a branching follow-up until they resolve it
+        or it escalates.</p>
+
+        <p><strong>It detects nothing.</strong> Your application decides what is worth escalating and pushes
+        it here. That distinction matters: DripStack is not a logging or observability tool, and it does not
+        replace Sentry, CloudWatch or your alerting. It sits downstream of all of them and handles the part
+        none of them do — telling a non-engineer what to physically go and do.</p>
+
+        <div class="cards">
+          <div class="card">
+            <div class="h">Who receives</div>
+            <p>A field technician, contractor or site manager — someone who cannot read a stack trace.</p>
+          </div>
+          <div class="card">
+            <div class="h">Who integrates</div>
+            <p>The equipment or software vendor whose support desk currently absorbs the call.</p>
+          </div>
+          <div class="card">
+            <div class="h">What it costs them</div>
+            <p>Two HTTP endpoints. Roughly twenty lines either side.</p>
+          </div>
+        </div>
+
+        <div class="launch">
+          <a class="btn solid" href="/login">Open the dashboard</a>
+          <a class="btn" href="/signup">Create an organization</a>
+          <a class="btn" href="api.html">API reference</a>
+          <a class="btn" href="integrations.html">Integrations</a>
+        </div>
+      </section>
+
+      <section id="pipeline">
+        <div class="eyebrow">How it works</div>
+        <h2>One event, five stages</h2>
+        <p>Select a stage to see what happens inside it.</p>
+
+        <div class="pipe" id="pipe">
+          <button class="stage" aria-pressed="true" data-i="0">
+            <span class="n">01</span><span class="t">Ingest</span><span class="w">POST /ingest</span></button>
+          <button class="stage" aria-pressed="false" data-i="1">
+            <span class="n">02</span><span class="t">Match</span><span class="w">trigger rules</span></button>
+          <button class="stage" aria-pressed="false" data-i="2">
+            <span class="n">03</span><span class="t">Explain</span><span class="w">LLM + fallback</span></button>
+          <button class="stage" aria-pressed="false" data-i="3">
+            <span class="n">04</span><span class="t">Deliver</span><span class="w">email · Slack</span></button>
+          <button class="stage" aria-pressed="false" data-i="4">
+            <span class="n">05</span><span class="t">Wait</span><span class="w">act or escalate</span></button>
+        </div>
+        <div class="stage-detail" id="stage-detail" role="status"></div>
+      </section>
+
+      <section id="send">
+        <div class="eyebrow">Build · one of two</div>
+        <h2>Send an event</h2>
+        <p>Sign the request body with your event source's secret and post it. You get <code>202</code> back —
+        accepted and queued — so never block your request path waiting on it.</p>
+
+        <div class="code" data-group="send">
+          <div class="code-bar">
+            <button class="tab" role="tab" aria-selected="true" data-lang="node">Node</button>
+            <button class="tab" role="tab" aria-selected="false" data-lang="python">Python</button>
+            <button class="tab" role="tab" aria-selected="false" data-lang="curl">curl</button>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre data-lang="node"><i>// Sign the EXACT bytes you send — serialise once, hash that string, post that string.</i>
+<b>const</b> body = JSON.stringify(payload);
+<b>const</b> sig  = crypto.createHmac(<u>'sha256'</u>, SIGNING_SECRET).update(body, <u>'utf8'</u>).digest(<u>'hex'</u>);
+
+<b>await</b> fetch(`${DRIPSTACK_URL}/api/v1/ingest/${EVENT_SOURCE_ID}`, {
+  method: <u>'POST'</u>,
+  headers: {
+    <u>'content-type'</u>: <u>'application/json'</u>,
+    <u>'x-dripstack-signature'</u>: `sha256=${sig}`,
+  },
+  body,
+});</pre>
+          <pre data-lang="python" hidden><i># Sign the EXACT bytes you send — dumps once, hash that string, post that string.</i>
+body = json.dumps(payload)
+sig  = hmac.new(SIGNING_SECRET.encode(), body.encode(), hashlib.sha256).hexdigest()
+
+httpx.post(
+    <u>f"{DRIPSTACK_URL}/api/v1/ingest/{EVENT_SOURCE_ID}"</u>,
+    headers={
+        <u>"content-type"</u>: <u>"application/json"</u>,
+        <u>"x-dripstack-signature"</u>: <u>f"sha256={sig}"</u>,
+    },
+    content=body,
+)</pre>
+          <pre data-lang="curl" hidden>BODY=<u>'{"eventType":"equipment.fault","technician":{"email":"tech@acme.com"}}'</u>
+SIG=$(printf <u>'%s'</u> <u>"$BODY"</u> | openssl dgst -sha256 -hmac <u>"$SIGNING_SECRET"</u> | sed <u>'s/^.* //'</u>)
+
+curl -X POST <u>"$DRIPSTACK_URL/api/v1/ingest/$EVENT_SOURCE_ID"</u> \
+  -H <u>'content-type: application/json'</u> \
+  -H <u>"x-dripstack-signature: sha256=$SIG"</u> \
+  --data-binary <u>"$BODY"</u></pre>
+        </div>
+
+        <h3>The payload is yours, with two conventions</h3>
+        <div class="tw"><table>
+          <tr><th>Field</th><th>Why it matters</th></tr>
+          <tr><td><code>eventType</code></td><td>What sequence trigger rules match on.</td></tr>
+          <tr><td><code>technician.email</code></td><td>Who gets contacted. <code>contactEmail</code>, <code>contact.email</code> and <code>user.email</code> also work. The contact is created automatically the first time.</td></tr>
+        </table></div>
+        <p>Everything else is your own shape — sequences pull from it by JSONPath. Send the error code, the
+        device, the site and the raw log, because the explanation can only be as good as what you hand over.
+        <code>{"error":"request failed"}</code> produces a useless email.</p>
+
+        <div class="note"><b>Where do I get the ID and secret?</b> Dashboard → <strong>Settings</strong> →
+        Event sources. The same page holds your API keys.</div>
+      </section>
+
+      <section id="receive">
+        <div class="eyebrow">Build · two of two</div>
+        <h2>Receive callbacks</h2>
+        <p>So your product learns how the conversation ended without anyone logging into DripStack.
+        Return any 2xx once you have durably accepted it; anything else is retried with backoff through a
+        dead-letter queue.</p>
+
+        <div class="code" data-group="recv">
+          <div class="code-bar">
+            <span class="code-name">express</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre><i>// express.raw, NOT express.json — the signature covers the bytes on the wire.</i>
+app.post(<u>'/webhooks/dripstack'</u>, express.raw({ type: <u>'*/*'</u> }), (req, res) => {
+  <b>const</b> raw = req.body.toString(<u>'utf8'</u>);
+  <b>const</b> expected = crypto.createHmac(<u>'sha256'</u>, WEBHOOK_SECRET).update(raw, <u>'utf8'</u>).digest(<u>'hex'</u>);
+  <b>if</b> (!signatureMatches(expected, req.get(<u>'x-dripstack-signature'</u>))) <b>return</b> res.sendStatus(401);
+
+  <b>const</b> { event, data } = JSON.parse(raw);   <i>// run.resolved | run.escalated</i>
+  <i>// …close the work order, page an engineer, whatever your product does</i>
+  res.json({ ok: <b>true</b> });
+});</pre>
+        </div>
+
+        <div class="code" data-group="reg">
+          <div class="code-bar">
+            <span class="code-name">register it once</span>
+            <button class="copy" type="button">Copy</button>
+          </div>
+          <pre>curl -X POST <u>"$DRIPSTACK_URL/api/v1/outbound-webhooks"</u> \
+  -H <u>"authorization: Bearer $TOKEN"</u> -H <u>'content-type: application/json'</u> \
+  -d <u>'{"url":"https://your-app/webhooks/dripstack","events":["run.resolved","run.escalated"]}'</u>
+
+<i># The response contains the signing secret. It is shown once.</i></pre>
+        </div>
+      </section>
+
+      <section id="signature">
+        <div class="eyebrow">Tool</div>
+        <h2>Signature playground</h2>
+        <p>A mismatched signature is the most common integration failure, and a <code>401</code> looks
+        identical whether the secret is wrong or the bytes shifted. Paste your secret and body to get the
+        exact header. Everything runs in your browser; nothing is sent anywhere.</p>
+
+        <div class="pg">
+          <div class="pg-head">
+            <div class="t">HMAC-SHA256 · x-dripstack-signature</div>
+            <div class="s">hex digest over the raw body · same scheme in both directions</div>
+          </div>
+          <div class="pg-body">
+            <div class="field">
+              <label for="pg-secret">Signing secret</label>
+              <input id="pg-secret" type="text" spellcheck="false" value="whsec_your_secret_here" />
+            </div>
+            <div class="field">
+              <label for="pg-body">Raw request body</label>
+              <textarea id="pg-body" rows="4" spellcheck="false">{"eventType":"equipment.fault","technician":{"email":"tech@acme.com"}}</textarea>
+            </div>
+            <div class="out" id="pg-out"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="gotchas">
+        <div class="eyebrow">Build</div>
+        <h2>Five traps worth knowing before you start</h2>
+
+        <h3>Parse the body, don't re-serialise it</h3>
+        <p>The signature covers the bytes on the wire. <code>express.json()</code> parses and discards them,
+        and re-stringifying gives different bytes — key order and whitespace differ — so every check fails.
+        The same rule applies outbound.</p>
+
+        <h3>There are two different secrets</h3>
+        <p>The ingest secret belongs to the event source. The callback secret belongs to the webhook
+        registration. Swapping them gives a 401 that looks exactly like a wrong value.</p>
+
+        <h3>Deduplication keys on sequence + contact</h3>
+        <p>Not on whatever your app considers the failing thing. Two devices failing for the same technician
+        produce <em>one</em> run, and the worker logs <code>active run exists — skipping new run</code>.
+        There is also a separate five-minute payload-hash dedupe for byte-identical retries. Key your local
+        state on what you sent, not on an assumed one-run-per-event.</p>
+
+        <h3>The callback URL must be reachable from DripStack</h3>
+        <p>Not just from your laptop. A <code>localhost</code> address, a private network, or anything
+        behind a firewall will never receive a callback — use a publicly resolvable URL, or a tunnel
+        while developing.</p>
+
+        <h3>Opening an action link does not trigger the action</h3>
+        <p>A tracked link opens a confirmation page; only the POST behind its button resolves or escalates.
+        That is deliberate — it stops mail scanners and browser prefetch from silently closing incidents —
+        but it surprises anyone testing the flow with <code>curl</code>.</p>
+
+        <div class="note warn"><b>Every tracked link is bound to its run.</b> An altered token, a missing
+        token, or a log token reused for a different block are all refused with <code>403</code>.</div>
+      </section>
+
+      <section id="api">
+        <div class="eyebrow">Reference</div>
+        <h2>API surface</h2>
+        <div class="tw"><table>
+          <tr><th>Endpoint</th><th>Auth</th><th>Purpose</th></tr>
+          <tr><td><code>POST /api/v1/ingest/{id}</code></td><td>HMAC</td><td>Public webhook. 120/min.</td></tr>
+          <tr><td><code>POST /api/v1/events</code></td><td>API key</td><td>Same thing without an event source. Server-to-server only.</td></tr>
+          <tr><td><code>POST /api/v1/outbound-webhooks</code></td><td>Bearer</td><td>Register a callback.</td></tr>
+          <tr><td><code>GET /api/v1/runs</code></td><td>Bearer</td><td>Sequence runs, scoped to your organization.</td></tr>
+          <tr><td><code>GET /api/v1/events</code></td><td>Bearer</td><td>Raw inbound feed and whether each matched.</td></tr>
+          <tr><td><code>GET /api/v1/settings</code></td><td>Bearer</td><td>Org config, event sources, API keys.</td></tr>
+          <tr><td><code>GET /ready</code></td><td>—</td><td>200 when the database is reachable, 503 otherwise.</td></tr>
+        </table></div>
+        <p>Every organization-scoped read is filtered by a tenant guard: a token from one organization gets
+        <code>404</code> on another's run, and list endpoints come back empty. Full detail in the
+        <a href="api.html">API reference</a>.</p>
+      </section>
+
+      <section id="access">
+        <div class="eyebrow">Reference</div>
+        <h2>Sign-in options</h2>
+        <div class="tw"><table>
+          <tr><th>Method</th><th>Creates accounts?</th><th>Notes</th></tr>
+          <tr><td>Email + password</td><td>Via signup</td><td>Self-serve. Rate limited to 5 new organizations per hour per address.</td></tr>
+          <tr><td>Continue with Google</td><td>No</td><td>Sign-in only. An unknown address is refused, never provisioned.</td></tr>
+          <tr><td>Sign up with Google</td><td>Yes</td><td>Creates the organization and makes you its admin. The name travels in a signed state token.</td></tr>
+          <tr><td>Single sign-on (OIDC)</td><td>Optional</td><td>Per organization. Resolved from your email domain, so nobody types an org id.</td></tr>
+        </table></div>
+        <div class="note">Self-serve signup can be switched off with <code>SIGNUP_ENABLED=false</code>. The
+        endpoints then return 404 and the pages disappear, rather than showing a door that does not open.</div>
+      </section>
+
+      <section id="limits">
+        <div class="eyebrow">Reference</div>
+        <h2>Known limits</h2>
+        <ul>
+          <li><strong>Resolve and escalate are not symmetric.</strong> Resolve closes the run immediately.
+          "I need help" only advances the drip — the run is marked escalated when the steps run out, so your
+          callback fires minutes later rather than on the click.</li>
+          <li><strong>Send failures are not retried.</strong> A momentary provider outage is recorded the
+          same way as a permanently bad address, and the sequence continues without that message.</li>
+          <li><strong>Dedupe has no fingerprinting.</strong> Ten variations of one failure produce ten runs
+          unless they share a contact and sequence.</li>
+          <li><strong>Explanations degrade, they do not block.</strong> No key, a rate-limited model or a
+          malformed reply all fall back to written guidance, and the email still sends.</li>
+          <li><strong>No log search, no on-call rotas, no maintenance windows.</strong> Deliberate — those
+          belong to the tools this sits downstream of.</li>
+        </ul>
+        <div class="launch">
+          <form class="subscribe" id="subscribeForm">
+          <label for="subEmail">Product &amp; API changes, occasionally</label>
+          <div class="subscribe-row">
+            <input id="subEmail" type="email" required placeholder="you@company.com" autocomplete="email" />
+            <button class="btn solid" type="submit">Subscribe</button>
+          </div>
+          <p class="subscribe-note" id="subNote">Opens your mail client — no list is stored on this site.</p>
+        </form>
+          <a class="btn" href="index.html">All documentation</a>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="index.html"><span class="glyph"><i></i></span>DripStack</a>
+        <p>Automated, event-triggered guidance that reaches the technician standing in front of the
+          equipment — and escalates when nobody answers.</p>
+        <a class="btn solid" href="/login">Open the app →</a>
+      </div>
+      <div class="foot-col">
+        <h4>Documentation</h4>
+        <a href="index.html">Overview</a>
+        <a href="integration-guide.html">Integration guide</a>
+        <a href="integrations.html">Integrations</a>
+        <a href="api.html">API reference</a>
+        <a href="security.html">Security</a>
+      </div>
+      <div class="foot-col">
+        <h4>Application</h4>
+        <a href="/login">Sign in</a>
+        <a href="/signup">Create an organization</a>
+        <a href="/runs">Incident pipeline</a>
+        <a href="/settings">Settings &amp; API keys</a>
+      </div>
+      <div class="foot-col">
+        <h4>Contribute</h4>
+        <a href="https://github.com/rakeshkumar2002/dripstack-dashboard/blob/main/public/docs/integration-guide.html">Edit this page</a>
+        <a href="https://github.com/rakeshkumar2002/dripstack-dashboard/issues/new?labels=docs&amp;title=Docs%3A+">Report a docs issue</a>
+        <a href="mailto:support@dripstack.dev">Contact support</a>
+        <a href="mailto:security@dripstack.dev">Report a vulnerability</a>
+      </div>
+
+    </div>
+    <p class="built-by">
+          <span>Built by</span>
+          <strong>Rakesh Kumar Jani</strong>
+          <a href="https://github.com/rakeshkumar2002" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+          <a href="https://x.com/RKumar_00_7" target="_blank" rel="noopener" aria-label="X" title="X"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.6 0h2.45l-5.36 6.12L16 16h-4.94l-3.87-5.06L2.77 16H.31l5.73-6.55L0 0h5.06l3.5 4.63L12.6 0Zm-.86 14.53h1.36L4.32 1.39H2.87l8.87 13.14Z"/></svg></a>
+          <a href="https://www.linkedin.com/in/rakesh-kumar-jani-01b209191/" target="_blank" rel="noopener" aria-label="LinkedIn" title="LinkedIn"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.62 16H.3V5.32h3.32V16ZM1.96 3.86A1.93 1.93 0 1 1 1.95 0a1.93 1.93 0 0 1 .01 3.86ZM16 16h-3.31v-5.2c0-1.24-.02-2.83-1.73-2.83-1.73 0-1.99 1.35-1.99 2.74V16H5.65V5.32h3.18v1.46h.05c.44-.84 1.53-1.72 3.14-1.72 3.36 0 3.98 2.21 3.98 5.08V16Z"/></svg></a>
+    </p>
+    <div class="foot-bottom">
+      <span>© 2026 DripStack</span>
+      <span>v0.1.0</span>
+      <span id="lastUpdated"></span>
+      <span class="sp"></span>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="security.html">Security</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  var STAGES = [
+    ['Ingest', 'Your app posts a signed event. The signature is verified against the raw bytes before anything is parsed, you get 202 immediately, and the work happens after. Nothing downstream runs on your request thread.'],
+    ['Match', 'The worker resolves the contact from the payload, creating them if new, then evaluates trigger rules to pick a sequence. A five-minute payload hash and a per sequence-and-contact check both suppress duplicates here.'],
+    ['Explain', 'The error is sent to a language model with your product documentation as authoritative context, and comes back as one plain-English paragraph plus three to five concrete steps. Low confidence, an API failure, or no key at all degrades to written fallback guidance — the email always sends.'],
+    ['Deliver', 'Server-rendered email with syntax-highlighted code, pretty-printed JSON and collapsible logs, built to survive Outlook and Gmail. Every action button and log link carries an HMAC token bound to that run.'],
+    ['Wait', 'A durable timer holds the sequence open — it survives restarts. Resolve closes it. "I need help" advances to the next message. Silence times out and escalates. Whichever happens, a signed callback tells your app.']
+  ];
+  var pipe = document.getElementById('pipe');
+  var detail = document.getElementById('stage-detail');
+  function showStage(i) {
+    pipe.querySelectorAll('.stage').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(Number(b.dataset.i) === i));
+    });
+    detail.innerHTML = '<strong>' + STAGES[i][0] + '</strong>' + STAGES[i][1];
+  }
+  pipe.addEventListener('click', function (e) {
+    var b = e.target.closest('.stage');
+    if (b) showStage(Number(b.dataset.i));
+  });
+  showStage(0);
+
+  document.querySelectorAll('.code').forEach(function (block) {
+    block.addEventListener('click', function (e) {
+      var tab = e.target.closest('.tab');
+      if (!tab) return;
+      block.querySelectorAll('.tab').forEach(function (t) {
+        t.setAttribute('aria-selected', String(t === tab));
+      });
+      block.querySelectorAll('pre[data-lang]').forEach(function (p) {
+        p.hidden = p.dataset.lang !== tab.dataset.lang;
+      });
+    });
+  });
+
+  document.querySelectorAll('.copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var block = btn.closest('.code');
+      var pre = block.querySelector('pre:not([hidden])');
+      navigator.clipboard.writeText(pre.innerText).then(function () {
+        var was = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(function () { btn.textContent = was; }, 1400);
+      });
+    });
+  });
+
+  var secretEl = document.getElementById('pg-secret');
+  var bodyEl = document.getElementById('pg-body');
+  var outEl = document.getElementById('pg-out');
+
+  async function digest() {
+    var secret = secretEl.value;
+    var body = bodyEl.value;
+    if (!secret) { outEl.innerHTML = '<span class="k">enter a signing secret</span>'; return; }
+    if (!(window.crypto && window.crypto.subtle)) {
+      outEl.innerHTML = '<span class="k">this tool needs a secure context (https or localhost)</span>';
+      return;
+    }
+    var enc = new TextEncoder();
+    var key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    var buf = await crypto.subtle.sign('HMAC', key, enc.encode(body));
+    var hex = Array.from(new Uint8Array(buf)).map(function (b) {
+      return b.toString(16).padStart(2, '0');
+    }).join('');
+    outEl.innerHTML =
+      '<span class="k">x-dripstack-signature:</span> <span class="v">sha256=' + hex + '</span>' +
+      '<br><span class="k">bytes signed:</span> <span class="v">' + enc.encode(body).length + '</span>';
+  }
+  secretEl.addEventListener('input', digest);
+  bodyEl.addEventListener('input', digest);
+  digest();
+
+  var lu = document.getElementById('lastUpdated');
+  if (lu && document.lastModified) {
+    var d = new Date(document.lastModified);
+    if (!isNaN(d)) lu.textContent = 'updated ' + d.toLocaleDateString(undefined, { day:'numeric', month:'short', year:'numeric' });
+  }
+  var sf = document.getElementById('subscribeForm');
+  if (sf) sf.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = document.getElementById('subEmail').value.trim();
+    if (!v) return;
+    window.location.href = 'mailto:hello@dripstack.dev?subject=' + encodeURIComponent('Subscribe to DripStack updates')
+      + '&body=' + encodeURIComponent('Please add ' + v + ' to the DripStack product and API updates list.');
+    document.getElementById('subNote').textContent = 'Opening your mail client…';
+  });
+
+  var links = Array.prototype.slice.call(document.querySelectorAll('#rail a[href^="#"]'));
+  var sections = links.map(function (a) { return document.querySelector(a.getAttribute('href')); });
+  var spy = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      if (!en.isIntersecting) return;
+      var i = sections.indexOf(en.target);
+      links.forEach(function (a, j) { a.classList.toggle('on', i === j); });
+    });
+  }, { rootMargin: '-70px 0px -72% 0px' });
+  sections.forEach(function (s) { if (s) spy.observe(s); });
+</script>
+</body>
+</html>
