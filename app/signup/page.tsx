@@ -5,92 +5,79 @@ import { Suspense, useEffect, useState } from 'react';
 import { api, ApiError, apiBase, setToken, useAuthProviders } from '@/app/lib/api';
 import { C, GoogleMark } from '@/components/ui';
 
-// Reasons the API hands back on ?sso_error=, turned into something a person can
-// act on. Anything unrecognised falls through to the raw code.
 const SSO_ERRORS: Record<string, string> = {
-  no_account: 'That Google account has no DripStack user. Ask an admin to invite you first.',
-  account_disabled: 'That account has been disabled.',
-  email_not_verified: 'Google has not verified that email address.',
-  access_denied: 'Sign-in was cancelled.',
-  signup_disabled: 'Self-serve signup is turned off on this deployment.',
   org_name_required: 'Enter an organization name before signing up with Google.',
+  signup_disabled: 'Self-serve signup is turned off on this deployment.',
+  email_not_verified: 'Google has not verified that email address.',
+  access_denied: 'Signup was cancelled.',
 };
 
-export default function LoginPage() {
+export default function SignupPage() {
   // useSearchParams() must sit under a Suspense boundary for the App Router build.
   return (
     <Suspense fallback={null}>
-      <LoginInner />
+      <SignupInner />
     </Suspense>
   );
 }
 
-function LoginInner() {
+function SignupInner() {
   const router = useRouter();
   const params = useSearchParams();
+  const [orgName, setOrgName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [exists, setExists] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [ssoBusy, setSsoBusy] = useState(false);
-  // null until known — the markup reserves the space rather than letting the
-  // Google button and signup link pop in and shove the form down.
   const providers = useAuthProviders();
 
-  // Surface a failure handed back by the OIDC/Google callback (?sso_error=...).
   useEffect(() => {
     const e = params.get('sso_error');
-    if (e) setError(SSO_ERRORS[e] ?? `Sign-in failed: ${e}`);
+    if (e) setError(SSO_ERRORS[e] ?? `Signup failed: ${e}`);
   }, [params]);
 
-  /**
-   * SSO is per-organization, but nobody knows their org id — so resolve it from
-   * the email domain first, then hand off to the authorization-code flow.
-   */
-  async function startSso() {
-    const addr = email.trim();
-    if (!addr.includes('@')) {
-      setError('Enter your work email first — SSO is matched on its domain.');
-      return;
-    }
-    setSsoBusy(true);
-    setError(null);
-    try {
-      const { orgId } = await api<{ orgId: string }>('/api/v1/auth/sso/discover', {
-        method: 'POST',
-        body: JSON.stringify({ email: addr }),
-      });
-      window.location.href = `${apiBase()}/api/v1/auth/sso/${encodeURIComponent(orgId)}/start`;
-    } catch (err) {
-      setError(
-        err instanceof ApiError && err.status === 404
-          ? 'No single sign-on is configured for that email domain.'
-          : 'Could not start single sign-on.',
-      );
-      setSsoBusy(false);
-    }
-  }
+  // With signup switched off the API 404s both endpoints, so this page is a
+  // dead end — bounce. The form still renders while we find out, because a
+  // blank screen for the duration of a round trip is worse than a form that
+  // occasionally redirects away.
+  useEffect(() => {
+    if (providers && !providers.signup) router.replace('/login');
+  }, [providers, router]);
+
+  const org = orgName.trim();
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setExists(false);
     try {
-      const res = await api<{ accessToken: string }>('/api/v1/auth/login', {
+      const res = await api<{ accessToken: string }>('/api/v1/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ orgName: org, email: email.trim(), password }),
       });
       setToken(res.accessToken);
       router.replace('/runs');
-    } catch {
-      setError('Invalid credentials. Did you run the seed?');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setExists(true);
+      } else if (err instanceof ApiError && err.status === 429) {
+        setError('Too many signups from this address. Try again later.');
+      } else if (err instanceof ApiError && err.status === 422) {
+        setError('Password must be at least 8 characters.');
+      } else {
+        setError('Could not create the organization.');
+      }
     } finally {
       setLoading(false);
     }
   }
 
-  const ssoBtn =
+  const btn =
     'flex h-12 items-center gap-[13px] rounded-[11px] border bg-white px-[17px] text-[14.5px] font-medium';
+  const field =
+    'h-[46px] w-full rounded-[11px] border bg-white px-[15px] font-mono text-[13px] outline-none';
 
   return (
     <div className="flex min-h-screen items-center justify-center p-[30px_20px]">
@@ -117,10 +104,10 @@ function LoginInner() {
             <span className="font-display text-[21px] font-semibold tracking-[-.3px]">DripStack</span>
           </div>
           <h2 className="mt-[34px] font-display text-[28px] font-semibold leading-[1.25] tracking-[-.6px]">
-            An automated concierge for technical incidents.
+            Start sending technical drips in minutes.
           </h2>
           <div className="mt-auto flex flex-col gap-[13px] text-[14.5px]">
-            {['Errors become smart emails', 'Branching drip sequences', 'Escalate only when needed'].map((t) => (
+            {['Your own workspace', 'You become the admin', 'Invite your team after'].map((t) => (
               <div key={t} className="flex items-center gap-[11px]">
                 <span className="h-[7px] w-[7px] rounded-full bg-white opacity-90" />
                 {t}
@@ -132,34 +119,52 @@ function LoginInner() {
         {/* FORM */}
         <form onSubmit={submit} className="flex flex-1 flex-col justify-center gap-[15px] p-[46px_44px]">
           <div>
-            <h1 className="m-0 font-display text-[25px] font-semibold tracking-[-.4px]">Sign in to your workspace</h1>
+            <h1 className="m-0 font-display text-[25px] font-semibold tracking-[-.4px]">Create your organization</h1>
             <div className="mt-[5px] text-[13.5px]" style={{ color: C.faint }}>
-              Support &amp; ops teams only — technicians never sign in.
+              You&apos;ll be its first admin.
             </div>
+          </div>
+
+          <div>
+            <div className="mb-[7px] font-mono text-[10px] tracking-[.5px]" style={{ color: C.fainter }}>
+              ORGANIZATION NAME
+            </div>
+            <input
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              placeholder="Acme Building Services"
+              autoComplete="organization"
+              className={field}
+              style={{ borderColor: '#d6dae3' }}
+            />
           </div>
 
           {providers === null ? (
             // Same 48px button + divider the resolved state occupies, so the
-            // form below does not jump once /auth/providers answers.
+            // fields below do not jump once /auth/providers answers.
             <>
-              <div className="mt-1 h-12 animate-pulse rounded-[11px]" style={{ background: '#eef0f5' }} />
+              <div className="h-12 animate-pulse rounded-[11px]" style={{ background: '#eef0f5' }} />
               <div className="my-[5px] h-[17px]" />
             </>
           ) : providers.google ? (
             <>
-              <div className="mt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.location.href = `${apiBase()}/api/v1/auth/google/start`;
-                  }}
-                  className={`${ssoBtn} w-full justify-center`}
-                  style={{ borderColor: '#d6dae3', color: C.ink }}
-                >
-                  <GoogleMark />
-                  Continue with Google
-                </button>
-              </div>
+              {/* Disabled until the name is filled: the API refuses a blank
+                  orgName, and a greyed-out button explains that better than a
+                  redirect that bounces straight back. */}
+              <button
+                type="button"
+                disabled={!org}
+                onClick={() => {
+                  window.location.href =
+                    `${apiBase()}/api/v1/auth/google/start` +
+                    `?mode=signup&orgName=${encodeURIComponent(org)}`;
+                }}
+                className={`${btn} w-full justify-center disabled:opacity-50`}
+                style={{ borderColor: '#d6dae3', color: C.ink }}
+              >
+                <GoogleMark />
+                Sign up with Google
+              </button>
               <div className="my-[5px] flex items-center gap-3">
                 <span className="h-px flex-1" style={{ background: C.border }} />
                 <span className="font-mono text-[11px]" style={{ color: '#b6bccb' }}>
@@ -180,7 +185,7 @@ function LoginInner() {
               type="email"
               autoComplete="username"
               placeholder="you@company.com"
-              className="h-[46px] w-full rounded-[11px] border bg-white px-[15px] font-mono text-[13px] outline-none"
+              className={field}
               style={{ borderColor: '#d6dae3' }}
             />
           </div>
@@ -192,50 +197,41 @@ function LoginInner() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               type="password"
-              autoComplete="current-password"
-              className="h-[46px] w-full rounded-[11px] border bg-white px-[15px] font-mono text-[13px] outline-none"
+              autoComplete="new-password"
+              placeholder="at least 8 characters"
+              className={field}
               style={{ borderColor: '#d6dae3' }}
             />
           </div>
 
-          {error ? (
+          {exists ? (
+            <p className="m-0 text-[13px]" style={{ color: C.redInk }}>
+              That email already has an account —{' '}
+              <a href="/login" style={{ color: C.blue }}>
+                sign in instead
+              </a>
+              .
+            </p>
+          ) : error ? (
             <p className="m-0 text-[13px]" style={{ color: C.redInk }}>
               {error}
             </p>
           ) : null}
 
           <button
-            disabled={loading}
+            disabled={loading || !org || !email.trim() || !password}
             className="h-12 rounded-[11px] text-[15px] font-semibold text-white disabled:opacity-50"
             style={{ background: C.blue, boxShadow: '0 5px 14px rgba(47,95,208,.26)' }}
           >
-            {loading ? 'Signing in…' : 'Continue →'}
+            {loading ? 'Creating…' : 'Create organization →'}
           </button>
 
-          {/* Reads the email above rather than asking for an org id — see startSso(). */}
-          <button
-            type="button"
-            onClick={startSso}
-            disabled={ssoBusy}
-            className="m-0 text-center text-[12.5px] disabled:opacity-60"
-            style={{ color: C.blue }}
-          >
-            {ssoBusy ? 'Redirecting…' : 'Use single sign-on (OIDC) instead'}
-          </button>
-
-          {/* Rendered but transparent while unknown: holds its line so the card
-              does not resize under the cursor a moment after load. */}
-          {providers === null || providers.signup ? (
-            <p
-              className="m-0 text-center text-[12.5px] transition-opacity"
-              style={{ color: C.faint, opacity: providers === null ? 0 : 1 }}
-            >
-              New here?{' '}
-              <a href="/signup" style={{ color: C.blue }}>
-                Create an organization
-              </a>
-            </p>
-          ) : null}
+          <p className="m-0 text-center text-[12.5px]" style={{ color: C.faint }}>
+            Already have an account?{' '}
+            <a href="/login" style={{ color: C.blue }}>
+              Sign in
+            </a>
+          </p>
         </form>
       </div>
     </div>

@@ -49,6 +49,25 @@ const iKey = (
   </svg>
 );
 
+const iGear = (
+  <svg width="17" height="17" viewBox="0 0 18 18" fill="none">
+    <circle cx="9" cy="9" r="2.6" stroke="currentColor" strokeWidth="1.6" />
+    <path
+      d="M9 1.8v1.9M9 14.3v1.9M16.2 9h-1.9M3.7 9H1.8M14.1 3.9l-1.3 1.3M5.2 12.8l-1.3 1.3M14.1 14.1l-1.3-1.3M5.2 5.2L3.9 3.9"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+const iInbox = (
+  <svg width="17" height="17" viewBox="0 0 18 18" fill="none">
+    <rect x="2.2" y="3.4" width="13.6" height="11.2" rx="2" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M2.2 10.4h3.3l1.2 2h4.6l1.2-2h3.3" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+  </svg>
+);
+
 const NAV: NavItem[] = [
   {
     href: '/runs',
@@ -93,6 +112,9 @@ const NAV: NavItem[] = [
       </svg>
     ),
   },
+  // The raw inbound feed and whether each event matched a sequence — the first
+  // place an integrator looks when "I posted an event and nothing happened".
+  { href: '/events', label: 'Events', icon: iInbox },
 ];
 
 const PLATFORM_MGMT: NavItem[] = [
@@ -101,9 +123,15 @@ const PLATFORM_MGMT: NavItem[] = [
 ];
 const CUSTOMER_MGMT: NavItem[] = [
   { href: '/technicians', label: 'Technicians', icon: iWrench, perm: 'technicians.read' },
+  // Auto-created from inbound events, as distinct from configured technicians.
+  { href: '/contacts', label: 'Contacts', icon: iUsers, perm: 'technicians.read' },
   { href: '/team', label: 'Team', icon: iUsers, perm: 'users.read' },
   { href: '/email', label: 'Email', icon: iMail, perm: 'technicians.read' },
   { href: '/sso', label: 'SSO', icon: iKey, perm: 'integrations.read' },
+  // Holds the event source id + signing secret and the API keys — i.e. the
+  // credentials a developer needs to integrate at all. Gated on the most
+  // restrictive thing on the page (/event-sources requires integrations.read).
+  { href: '/settings', label: 'Settings', icon: iGear, perm: 'integrations.read' },
   { href: '/security', label: 'Audit log', icon: iShield, perm: 'users.read' },
 ];
 

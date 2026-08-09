@@ -34,6 +34,56 @@ export function useApiBase(): string {
   return base;
 }
 
+export type AuthProviders = { google: boolean; signup: boolean };
+
+const PROVIDERS_KEY = 'ds_providers';
+
+/**
+ * Which auth options this deployment offers, for the login and signup pages.
+ *
+ * Returns `null` while unknown so callers can reserve space instead of popping
+ * a button in after the round trip. The answer is cached in localStorage and
+ * used as the initial value on later visits — it changes only when the server
+ * is reconfigured, so a stale read costs one render, and the revalidation below
+ * corrects it. Reading storage in an effect rather than during render is
+ * deliberate: the server has no localStorage, and seeding state from it
+ * directly would be a hydration mismatch.
+ */
+export function useAuthProviders(): AuthProviders | null {
+  const [providers, setProviders] = useState<AuthProviders | null>(null);
+
+  useEffect(() => {
+    let live = true;
+
+    try {
+      const cached = window.localStorage.getItem(PROVIDERS_KEY);
+      if (cached) setProviders(JSON.parse(cached) as AuthProviders);
+    } catch {
+      /* unparseable or storage blocked — fall through to the fetch */
+    }
+
+    api<AuthProviders>('/api/v1/auth/providers')
+      .then((p) => {
+        if (!live) return;
+        const next = { google: !!p.google, signup: !!p.signup };
+        setProviders(next);
+        try {
+          window.localStorage.setItem(PROVIDERS_KEY, JSON.stringify(next));
+        } catch {
+          /* storage blocked — the fetch still populated state */
+        }
+      })
+      // Unreachable API: offer nothing rather than a button that cannot work.
+      .catch(() => live && setProviders({ google: false, signup: false }));
+
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  return providers;
+}
+
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
   return window.localStorage.getItem(TOKEN_KEY);
