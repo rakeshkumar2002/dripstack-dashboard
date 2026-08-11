@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { clearToken, getToken } from '@/app/lib/api';
+import { useEffect, useState } from 'react';
+import { api, clearToken, getToken } from '@/app/lib/api';
 import { usePrincipal } from '@/app/lib/principal';
 import { C } from './ui';
 
@@ -135,6 +135,13 @@ const CUSTOMER_MGMT: NavItem[] = [
   { href: '/security', label: 'Audit log', icon: iShield, perm: 'users.read' },
 ];
 
+type TodayStats = {
+  total: number;
+  resolved: number;
+  terminal: number;
+  absorbedRate: number | null;
+};
+
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -148,6 +155,21 @@ export function Shell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!getToken()) router.replace('/login');
   }, [router]);
+
+  // The "absorbed today" card used to be hardcoded to 23/28. Undefined while
+  // loading, null if the call fails — so the card can tell those apart from a
+  // genuine zero instead of inventing numbers.
+  const [today, setToday] = useState<TodayStats | null | undefined>(undefined);
+  useEffect(() => {
+    if (!getToken()) return;
+    let live = true;
+    api<{ today?: TodayStats }>('/api/v1/analytics')
+      .then((a) => live && setToday(a.today ?? null))
+      .catch(() => live && setToday(null));
+    return () => {
+      live = false;
+    };
+  }, [pathname]);
 
   function signOut() {
     clearToken();
@@ -234,18 +256,39 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <div className="font-mono text-[10px] tracking-[.5px]" style={{ color: C.blue }}>
               ABSORBED TODAY
             </div>
-            <div className="mt-[5px] flex items-baseline gap-[7px]">
-              <span className="font-display text-[28px] font-semibold tracking-[-1px]">23</span>
-              <span className="text-[12.5px]" style={{ color: C.muted }}>
-                of 28 incidents
-              </span>
-            </div>
-            <div className="mt-[9px] h-[6px] overflow-hidden rounded-[4px]" style={{ background: '#dbe4fb' }}>
-              <div className="h-full rounded-[4px]" style={{ width: '82%', background: C.blue }} />
-            </div>
-            <div className="mt-[7px] text-[11.5px]" style={{ color: C.muted }}>
-              82% resolved without a human
-            </div>
+            {today === undefined ? (
+              <div className="mt-[7px] h-[46px] animate-pulse rounded-[7px]" style={{ background: '#dbe4fb' }} />
+            ) : today === null ? (
+              <div className="mt-[7px] text-[12px]" style={{ color: C.muted }}>
+                Unavailable right now
+              </div>
+            ) : today.terminal === 0 ? (
+              <div className="mt-[7px] text-[12px]" style={{ color: C.muted }}>
+                {today.total === 0
+                  ? 'No incidents yet today'
+                  : `${today.total} open · none closed yet`}
+              </div>
+            ) : (
+              <>
+                <div className="mt-[5px] flex items-baseline gap-[7px]">
+                  <span className="font-display text-[28px] font-semibold tracking-[-1px] tabular-nums">
+                    {today.resolved}
+                  </span>
+                  <span className="text-[12.5px]" style={{ color: C.muted }}>
+                    of {today.terminal} incident{today.terminal === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <div className="mt-[9px] h-[6px] overflow-hidden rounded-[4px]" style={{ background: '#dbe4fb' }}>
+                  <div
+                    className="h-full rounded-[4px] transition-[width] duration-500"
+                    style={{ width: `${Math.round((today.absorbedRate ?? 0) * 100)}%`, background: C.blue }}
+                  />
+                </div>
+                <div className="mt-[7px] text-[11.5px]" style={{ color: C.muted }}>
+                  {Math.round((today.absorbedRate ?? 0) * 100)}% resolved without a human
+                </div>
+              </>
+            )}
           </div>
           <div
             className="flex items-center gap-[10px] px-[6px] pt-3"
